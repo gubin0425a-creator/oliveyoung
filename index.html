@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Beauty Global Lister - All-in-One Master Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0e0f10; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #26282d; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3b3d44; }
+        .glass-panel { background: rgba(20, 21, 24, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.07); }
+        .tab-btn.active { background: linear-gradient(135deg, rgba(37,99,235,0.2), rgba(236,72,153,0.2)); border-color: rgba(99,102,241,0.5); color: #fff; }
+
+        /* Sidebar Collapse styling */
+        #sidebar.collapsed { width: 5.5rem; }
+        #sidebar.collapsed .p-6 { padding-left: 1rem; padding-right: 1rem; }
+        #sidebar.collapsed .sidebar-text { display: none; }
+        #sidebar.collapsed .tab-btn { justify-content: center; padding-left: 0; padding-right: 0; }
+        #sidebar.collapsed #sidebarToggleIcon { transform: rotate(180deg); }
+        #sidebar.collapsed .profile-text { display: none; }
+        #sidebar.collapsed .profile-box { padding-left: 1rem; padding-right: 1rem; align-items: center; text-align: center; }
+        #sidebar.collapsed .logout-btn { justify-content: center; padding-left: 0; padding-right: 0; }
+    </style>
+</head>
+<body class="bg-[#0a0a0c] text-gray-200 font-sans flex h-screen overflow-hidden">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform transition-all duration-300 opacity-0 pointer-events-none translate-y-[-10px] bg-[#1e2025] border border-blue-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-blue-400"></i>
+        <span id="toastMsg">성공적으로 반영되었습니다!</span>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="bg-[#141518] border border-[#26282d] p-8 rounded-3xl max-w-sm w-full text-center space-y-6 relative shadow-2xl">
+            <button type="button" onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <i class="fa-solid fa-qrcode text-2xl"></i>
+            </div>
+            
+            <div>
+                <h3 class="text-xl font-bold text-white">모바일 기기 연결 QR 코드</h3>
+                <p class="text-xs text-gray-400 mt-1">스마트폰 카메라로 스캔하면 주소 입력 없이 모바일 기기에서 즉시 연결됩니다.</p>
+            </div>
+            
+            <div class="flex justify-center p-4 bg-white rounded-2xl w-fit mx-auto shadow-inner" id="qrcodeContainer"></div>
+            
+            <div class="bg-[#0a0a0c] border border-[#22242a] p-3 rounded-xl text-xs space-y-1">
+                <p class="text-gray-400">마스터 패스코드: <span class="text-pink-400 font-mono font-bold">635835</span></p>
+                <p id="qrUrlText" class="text-gray-500 font-mono text-[10px] truncate"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div id="barcodeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="bg-[#141518] border border-[#26282d] p-6 md:p-8 rounded-3xl max-w-md w-full space-y-6 relative shadow-2xl text-center">
+            <button type="button" onclick="closeBarcodeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <i class="fa-solid fa-barcode text-2xl"></i>
+            </div>
+            
+            <div>
+                <h3 class="text-xl font-bold text-white">화장품 바코드 스캔</h3>
+                <p class="text-xs text-gray-400 mt-1">제품 바코드(880...) 사진을 업로드하거나 실시간 카메라로 스캔하세요.</p>
+            </div>
+            
+            <!-- Mode Switcher -->
+            <div class="grid grid-cols-2 gap-2 bg-[#0a0a0c] p-1 rounded-xl text-xs font-bold">
+                <button type="button" id="tab-bc-file" onclick="switchBarcodeMode('file')" class="py-2.5 rounded-lg bg-[#1e2025] text-white">📷 사진 파일 업로드</button>
+                <button type="button" id="tab-bc-cam" onclick="switchBarcodeMode('cam')" class="py-2.5 rounded-lg text-gray-400">📹 카메라 실시간 스캔</button>
+            </div>
+            
+            <!-- File Mode -->
+            <div id="bcFileSection" class="space-y-4">
+                <div class="border-2 border-dashed border-[#26282d] hover:border-blue-500/50 rounded-2xl p-6 text-center cursor-pointer relative" onclick="document.getElementById('barcodeFileInput').click()">
+                    <i class="fa-solid fa-file-image text-3xl text-gray-500 mb-2"></i>
+                    <p class="text-xs font-bold text-gray-300">바코드 사진 이미지 선택</p>
+                    <p class="text-[10px] text-gray-500 mt-1">PNG, JPG, JPEG 이미지 파일 지원</p>
+                    <input type="file" id="barcodeFileInput" accept="image/*" class="hidden" onchange="handleBarcodeFileSelect(event)">
+                </div>
+            </div>
+
+            <!-- Camera Mode -->
+            <div id="bcCamSection" class="hidden space-y-4">
+                <div id="interactiveScanner" class="w-full bg-[#0a0a0c] rounded-2xl overflow-hidden min-h-[200px] border border-[#26282d]"></div>
+            </div>
+
+            <!-- Detection Status -->
+            <div id="bcStatus" class="hidden text-xs text-blue-400 font-bold bg-blue-500/10 p-3 rounded-xl border border-blue-500/20"></div>
+        </div>
+    </div>
+
+
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-72 bg-[#101114] border-r border-[#1e2025] flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 relative">
+        <div class="p-6">
+            <!-- Brand -->
+            <div class="flex items-center justify-between mb-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-pink-500 flex items-center justify-center shadow-lg shadow-blue-500/20 shrink-0">
+                        <i class="fa-solid fa-wand-magic-sparkles text-white text-lg"></i>
+                    </div>
+                    <div class="sidebar-text">
+                        <h1 class="text-lg font-black bg-gradient-to-r from-blue-400 via-indigo-200 to-pink-400 bg-clip-text text-transparent">K-Beauty Lister</h1>
+                        <p class="text-[10px] text-gray-500 tracking-wider font-semibold uppercase">Global Uplister Pro</p>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="text-gray-500 hover:text-white transition-colors p-1" title="사이드바 접기/열기">
+                    <i id="sidebarToggleIcon" class="fa-solid fa-chevron-left text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="space-y-1.5 font-medium text-sm text-gray-400">
+                <button onclick="switchTab('tab-sourcing')" id="nav-sourcing" class="tab-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent hover:text-white transition text-left">
+                    <i class="fa-solid fa-magnifying-glass text-blue-400 w-5 text-center shrink-0"></i>
+                    <span class="sidebar-text">상품 발굴 및 소싱</span>
+                </button>
+                <button onclick="switchTab('tab-translation')" id="nav-translation" class="tab-btn w-full flex items-center justify-between px-4 py-3 rounded-xl border border-transparent hover:text-white transition text-left">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-language text-pink-400 w-5 text-center shrink-0"></i>
+                        <span class="sidebar-text">AI 영문 번역 & 최적화</span>
+                    </div>
+                    <span id="sourcingBadge" class="bg-pink-500/20 text-pink-400 text-xs px-2 py-0.5 rounded-full font-bold sidebar-text">0</span>
+                </button>
+                <button onclick="switchTab('tab-pricing')" id="nav-pricing" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent hover:text-white transition text-left">
+                    <i class="fa-solid fa-coins text-amber-400 w-5 text-center shrink-0"></i>
+                    <span class="sidebar-text">실시간 가격 & 마진 분석</span>
+                </button>
+                <button onclick="switchTab('tab-export')" id="nav-export" class="tab-btn w-full flex items-center justify-between px-4 py-3 rounded-xl border border-transparent hover:text-white transition text-left">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-download text-emerald-400 w-5 text-center shrink-0"></i>
+                        <span class="sidebar-text">대량 업로드 다운로드</span>
+                    </div>
+                    <span id="listingBadge" class="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full font-bold sidebar-text">0</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Settings Profile Box -->
+        <div class="p-5 border-t border-[#1e2025] bg-[#0c0d0f] profile-box space-y-3">
+            <div class="flex items-center justify-between mb-1 profile-text">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs text-gray-300 font-semibold truncate max-w-[120px]">{{ device.device_name if device else '인증된 디바이스' }}</span>
+                </div>
+                <span class="text-[10px] bg-[#1a1b1e] text-blue-400 border border-[#2a2b2e] px-1.5 py-0.5 rounded font-mono">{{ device_count }}/9 활성</span>
+            </div>
+            
+            <!-- Gemini API Key Input -->
+            <div class="space-y-1.5 profile-text text-left">
+                <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">Gemini API Key</label>
+                <input type="password" id="geminiApiKey" oninput="saveApiKey(this.value)" placeholder="Gemini API Key 입력" class="w-full bg-[#141518] text-xs text-gray-300 px-3 py-2.5 border border-[#26282d] rounded-xl outline-none focus:border-blue-500 transition font-mono">
+            </div>
+
+            <!-- QR Code Sharing Button -->
+            <button type="button" onclick="showQrModal()" class="w-full bg-[#1a1b1e] hover:bg-blue-500/10 hover:border-blue-500/40 border border-[#26282d] text-blue-400 hover:text-blue-300 text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2 logout-btn">
+                <i class="fa-solid fa-qrcode"></i> <span class="sidebar-text">기기 공유 QR 코드</span>
+            </button>
+
+            <!-- Logout Button -->
+            <button onclick="logout()" class="w-full bg-[#1a1b1e] hover:bg-red-500/10 hover:border-red-500/40 border border-[#26282d] text-gray-400 hover:text-red-400 text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2 logout-btn">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="sidebar-text">연결 해제 (로그아웃)</span>
+            </button>
+
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 flex flex-col h-full overflow-y-auto custom-scrollbar relative">
+
+        <!-- Mobile Top Nav -->
+        <header class="md:hidden glass-panel p-4 border-b border-[#1e2025] flex items-center justify-between sticky top-0 z-30">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-pink-500 text-lg"></i>
+                <span class="font-bold text-white">K-Beauty Lister</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <select onchange="switchTab(this.value)" class="bg-[#1a1b1e] text-xs text-gray-300 border border-[#333] rounded-lg px-2.5 py-1.5 outline-none">
+                    <option value="tab-sourcing">🔍 상품 소싱</option>
+                    <option value="tab-translation">🤖 AI 영문 번역</option>
+                    <option value="tab-pricing">💰 가격 & 마진 분석</option>
+                    <option value="tab-export">📥 대량 업로드 추출</option>
+                </select>
+                <button onclick="logout()" class="text-xs text-gray-400 p-2"><i class="fa-solid fa-power-off"></i></button>
+            </div>
+        </header>
+
+        <div class="p-6 md:p-10 max-w-7xl mx-auto w-full space-y-10">
+
+            <!-- ========================================================
+                 TAB 1: PRODUCT SOURCING
+                 ======================================================== -->
+            <section id="tab-sourcing" class="tab-content space-y-8">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#1e2025] pb-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 text-xs font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full mb-2">
+                            <i class="fa-solid fa-magnifying-glass"></i> Domestic Market Scraper
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tight">올리브영 & 다이소 상품 수집</h2>
+                        <p class="text-sm text-gray-400 mt-1">올리브영 국내 매장 상품과 다이소몰 전체 상품을 키워드 또는 고유 번호(URL)를 통해 한 번에 긁어모읍니다.</p>
+                    </div>
+                </div>
+
+                <!-- Category Quick Chips Bar -->
+                <div class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-300 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-list text-pink-400"></i> 올리브영 카테고리별 대량 수집 (Category Shop Bulk Scraping)
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] text-gray-400 font-bold">수집 페이지 수:</label>
+                            <select id="scrapePages" class="bg-[#141518] text-xs text-blue-400 border border-[#26282d] rounded-lg px-2.5 py-1 outline-none font-bold cursor-pointer">
+                                <option value="1">1 페이지 (최대 48개)</option>
+                                <option value="2">2 페이지 (최대 96개)</option>
+                                <option value="3">3 페이지 (최대 144개)</option>
+                                <option value="5">5 페이지 (최대 240개)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="selectCategory('10000010001', '스킨케어 전체')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧴 스킨케어 전체</button>
+                        <button type="button" onclick="selectCategory('100000100010001', '스킨/토너')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">💧 스킨/토너</button>
+                        <button type="button" onclick="selectCategory('100000100010002', '에센스/세럼/앰플')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧪 에센스/세럼/앰플</button>
+                        <button type="button" onclick="selectCategory('100000100010003', '크림')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🥛 크림</button>
+                        <button type="button" onclick="selectCategory('100000100010004', '로션/에멀젼')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧴 로션</button>
+                        <button type="button" onclick="selectCategory('100000100010005', '미스트/오일')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🌿 미스트/오일</button>
+                        <button type="button" onclick="selectCategory('100000100010006', '마스크팩/패드')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🎭 마스크팩/패드</button>
+                        <button type="button" onclick="selectCategory('100000100010007', '선케어')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">☀️ 선케어</button>
+                        <button type="button" onclick="selectCategory('10000010002', '메이크업')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">💄 메이크업</button>
+                    </div>
+                </div>
+
+                <!-- Sourcing settings panel -->
+                <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">검색 키워드, 13자리 바코드(880...), 제품 사진 또는 URL</label>
+                            <div class="flex items-center bg-[#0a0a0c] border border-[#26282d] rounded-2xl p-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition gap-2">
+                                <input type="text" id="searchQuery" placeholder="예: 13자리 바코드(880...), VT 리들샷, 독도 토너 또는 올리브영/다이소 URL" class="w-full bg-transparent text-white placeholder-gray-600 outline-none text-base">
+                                <button type="button" onclick="openBarcodeModal()" class="bg-[#1e2025] hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 border border-[#26282d] hover:border-blue-500/40 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-barcode text-base"></i>
+                                    <span class="hidden sm:inline">바코드</span>
+                                </button>
+                                <button type="button" onclick="document.getElementById('photoSearchInput').click()" class="bg-[#1e2025] hover:bg-pink-600/30 text-pink-400 hover:text-pink-300 border border-[#26282d] hover:border-pink-500/40 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-camera text-base"></i>
+                                    <span class="hidden sm:inline">제품 사진 AI 인식</span>
+                                </button>
+                                <input type="file" id="photoSearchInput" accept="image/*" class="hidden" onchange="handlePhotoSearchSelect(event)">
+                            </div>
+
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">소싱 출처 채널</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="setSourceChannel('all')" id="btn-chan-all" class="channel-btn py-3.5 px-3 bg-blue-600/20 border border-blue-500/50 text-white rounded-xl text-xs font-bold transition">전체 통합</button>
+                                <button type="button" onclick="setSourceChannel('oy')" id="btn-chan-oy" class="channel-btn py-3.5 px-3 bg-[#1e2025] border border-[#26282d] text-gray-400 rounded-xl text-xs font-bold transition">올리브영</button>
+                                <button type="button" onclick="setSourceChannel('ds')" id="btn-chan-ds" class="channel-btn py-3.5 px-3 bg-[#1e2025] border border-[#26282d] text-gray-400 rounded-xl text-xs font-bold transition">다이소몰</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cloudflare Override Expandable -->
+                    <div class="border border-[#26282d] rounded-2xl p-4">
+                        <button type="button" onclick="toggleCloudflareConfig()" class="w-full flex items-center justify-between text-left text-xs font-bold text-gray-400 hover:text-white transition">
+                            <span><i class="fa-solid fa-shield-halved mr-1.5 text-pink-500"></i> 올리브영 Cloudflare WAF 방화벽 우회 설정 (Anti-403)</span>
+                            <i id="cfToggleIcon" class="fa-solid fa-chevron-down"></i>
+                        </button>
+                        <div id="cfConfigPanel" class="hidden mt-4 space-y-4">
+                            <p class="text-xs text-gray-500">올리브영에서 403 Forbidden 오류가 발생하는 경우 본인 브라우저의 Cookie 값을 붙여넣어 방화벽을 우회하십시오.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 mb-1 uppercase">User-Agent</label>
+                                    <input type="text" id="oyUa" value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" class="w-full bg-[#0a0a0c] text-xs text-gray-300 px-3 py-2.5 border border-[#26282d] rounded-xl outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-gray-400 mb-1 uppercase">Cookie Header String</label>
+                                    <textarea id="oyCookies" rows="1" placeholder="__cf_bm=...; cf_clearance=... 형태의 쿠키값을 그대로 입력" class="w-full bg-[#0a0a0c] text-xs text-gray-300 px-3 py-2 border border-[#26282d] rounded-xl outline-none resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" onclick="searchProducts()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:opacity-95 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass"></i> 스토어 검색 및 상품 정보 수집 시작
+                    </button>
+                </div>
+
+                <!-- Search Results Section -->
+                <div id="searchResultsSection" class="hidden space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-bold text-white">수집된 검색 결과</h3>
+                        <div class="flex gap-2">
+                            <button onclick="selectAllResults(true)" class="text-xs text-blue-400 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20">전체 선택</button>
+                            <button onclick="selectAllResults(false)" class="text-xs text-gray-400 bg-[#1e2025] px-3 py-1.5 rounded-lg border border-[#26282d]">선택 해제</button>
+                        </div>
+                    </div>
+
+                    <div id="resultsGrid" class="grid grid-cols-1 gap-3">
+                        <!-- Populated by search results -->
+                    </div>
+
+                    <button onclick="addSelectedToSourcing()" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 선택한 상품 AI 번역 대기열(Sourcing Queue)에 추가
+                    </button>
+                </div>
+            </section>
+
+            <!-- ========================================================
+                 TAB 2: AI TRANSLATION
+                 ======================================================== -->
+            <section id="tab-translation" class="tab-content space-y-8 hidden">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#1e2025] pb-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 text-xs font-bold text-pink-400 bg-pink-500/10 border border-pink-500/20 px-3 py-1 rounded-full mb-2">
+                            <i class="fa-solid fa-language"></i> Gemini AI Translation Engine
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tight">AI 영문 번역 & SEO 최적화</h2>
+                        <p class="text-sm text-gray-400 mt-1">대기열의 국문 정보를 해외 마켓에 최적화된 영문 상품명과 구조적 설명으로 자동 일괄 번역합니다.</p>
+                    </div>
+                </div>
+
+                <!-- Batch Translate Control -->
+                <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-2xl">
+                    <div>
+                        <p class="text-sm font-bold text-white">대기 상품 수: <span id="sourcingQueueCount" class="text-pink-400">0</span>개</p>
+                        <p class="text-xs text-gray-500 mt-1">Gemini API Key가 비어 있으면 사전 설정된 번역 규칙이 자동으로 적용됩니다.</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="clearSourcingQueue()" class="bg-[#1e2025] border border-[#26282d] hover:bg-red-500/10 hover:text-red-400 text-gray-400 py-3.5 px-6 rounded-xl text-xs font-bold transition">대기열 비우기</button>
+                        <button onclick="runBatchTranslation()" class="bg-gradient-to-r from-pink-600 to-indigo-600 text-white py-3.5 px-8 rounded-xl text-xs font-bold shadow-lg hover:opacity-95 transition flex items-center gap-2">
+                            <i class="fa-solid fa-robot animate-pulse"></i> AI 일괄 번역 실행
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div id="translateProgressBarContainer" class="hidden bg-[#141518] border border-[#22242a] rounded-2xl p-4 space-y-2">
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span id="translateProgressLabel">번역 진행 중...</span>
+                        <span id="translateProgressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-[#0a0a0c] h-2.5 rounded-full overflow-hidden">
+                        <div id="translateProgressBar" class="bg-gradient-to-r from-pink-500 to-blue-500 h-full transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Sourcing Queue Cards -->
+                <div id="sourcingQueueList" class="space-y-4">
+                    <!-- Sourcing Queue items -->
+                </div>
+            </section>
+
+            <!-- ========================================================
+                 TAB 3: PRICING & REVIEW
+                 ======================================================== -->
+            <section id="tab-pricing" class="tab-content space-y-8 hidden">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#1e2025] pb-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full mb-2">
+                            <i class="fa-solid fa-coins"></i> Margin & Currency Optimizer
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tight">실시간 마진 계산 & 정보 검토</h2>
+                        <p class="text-sm text-gray-400 mt-1">마진율, 수수료, 무게별 배송료를 실시간 반영하여 해외 판매가를 결정하고 메타데이터를 개별 편집합니다.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Global Calculator Config Card -->
+                    <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl h-fit">
+                        <h3 class="text-lg font-bold text-white"><i class="fa-solid fa-sliders text-amber-400 mr-1.5"></i> 마진 계산 매개변수 설정</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">마크업 배수 (Markup Multiplier)</label>
+                                <input type="number" id="calcMarkup" value="2.0" step="0.1" min="1.0" oninput="recalculateAllPrices()" class="w-full bg-[#0a0a0c] text-white px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                                <p class="text-[10px] text-gray-500 mt-1">현지 원가 대비 마크업 비율입니다. (예: 2.0 = 원가 2배)</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">KG당 국제 배송비 (KRW)</label>
+                                <input type="number" id="calcShipping" value="10000" step="500" min="0" oninput="recalculateAllPrices()" class="w-full bg-[#0a0a0c] text-white px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">마켓 플랫폼 수수료 (%)</label>
+                                <input type="number" id="calcPlatformFee" value="10.0" step="0.5" min="0" oninput="recalculateAllPrices()" class="w-full bg-[#0a0a0c] text-white px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">타겟 마켓 통화</label>
+                                <select id="calcCurrency" onchange="setCurrencyPreset(this.value)" class="w-full bg-[#0a0a0c] text-white px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500 cursor-pointer">
+                                    <option value="SGD">SGD (싱가포르)</option>
+                                    <option value="USD">USD (미국)</option>
+                                    <option value="PHP">PHP (필리핀)</option>
+                                    <option value="MYR">MYR (말레이시아)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">적용 환율 (1외화당 KRW)</label>
+                                <input type="number" id="calcExchangeRate" value="1000" step="1" min="0.1" oninput="recalculateAllPrices()" class="w-full bg-[#0a0a0c] text-white px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Listing Queue Editors -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-bold text-white">번역 완료 상품 목록 (<span id="listingQueueCount">0</span>)</h3>
+                            <button onclick="recalculateAllPrices()" class="text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 flex items-center gap-1">
+                                <i class="fa-solid fa-arrows-rotate"></i> 계산 재적용
+                            </button>
+                        </div>
+                        
+                        <div id="listingQueueList" class="space-y-6">
+                            <!-- Listing Queue Item Cards with Edit fields -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ========================================================
+                 TAB 4: EXPORT & DOWNLOAD
+                 ======================================================== -->
+            <section id="tab-export" class="tab-content space-y-8 hidden">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#1e2025] pb-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full mb-2">
+                            <i class="fa-solid fa-download"></i> Bulk Uploader Exporter
+                        </div>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tight">해외 플랫폼 벌크 업로드 엑셀/CSV 추출</h2>
+                        <p class="text-sm text-gray-400 mt-1">완성된 상품 데이터를 Shopee 업로드용 엑셀 혹은 Shopify 제품 등록용 CSV 파일 양식으로 내보내고 초기화합니다.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Export Shopee Box -->
+                    <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-500 border border-orange-500/20 mb-2">
+                            <i class="fa-solid fa-bag-shopping text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">Shopee (쇼피) 대량 업로드</h3>
+                        <p class="text-xs text-gray-400 max-w-sm mx-auto">쇼피 글로벌 마켓(Shopee Global)의 대량 업로드 표준 양식에 맞춘 엑셀 템플릿 파일(v2.0)을 다운로드할 수 있습니다.</p>
+                        <button onclick="downloadTemplate('shopee')" class="w-full bg-[#ff5722] hover:bg-[#ff5722]/90 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-file-excel"></i> Shopee 엑셀 다운로드
+                        </button>
+                    </div>
+
+                    <!-- Export Shopify Box -->
+                    <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 space-y-6 shadow-2xl text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-500/10 text-green-500 border border-green-500/20 mb-2">
+                            <i class="fa-brands fa-shopify text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">Shopify (쇼피파이) 제품 가져오기</h3>
+                        <p class="text-xs text-gray-400 max-w-sm mx-auto">쇼피파이 독립몰 제품 등록에 적합한 표준 CSV Import 포맷 양식으로 상품 리스트 파일로 내보냅니다.</p>
+                        <button onclick="downloadTemplate('shopify')" class="w-full bg-[#5c6ac4] hover:bg-[#5c6ac4]/90 text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-file-csv"></i> Shopify CSV 다운로드
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 space-y-4 shadow-2xl">
+                    <h3 class="text-lg font-bold text-white">완성 상품 전체 프리뷰 목록</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-[#26282d] text-gray-500">
+                                    <th class="py-3 px-4">출처</th>
+                                    <th class="py-3 px-4">영어 브랜드</th>
+                                    <th class="py-3 px-4">영어 상품명</th>
+                                    <th class="py-3 px-4">무게 (kg)</th>
+                                    <th class="py-3 px-4">등록 재고</th>
+                                    <th class="py-3 px-4">최종 판매가</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exportPreviewList" class="divide-y divide-[#1e2025]">
+                                <!-- Preview list rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <button onclick="resetListingQueue()" class="w-full bg-[#1e2025] hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/40 border border-[#26282d] text-gray-400 font-bold py-4 rounded-xl transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> 스튜디오 전체 초기화 (보관함 삭제)
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- JAVASCRIPT CONTROLLER -->
+    <script>
+        let currentSourceChannel = 'all';
+        let sourcingQueue = {};
+        let listingQueue = {};
+        let searchResults = [];
+
+        // Tab Switcher
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            const activeSection = document.getElementById(tabId);
+            if(activeSection) activeSection.classList.remove('hidden');
+            
+            const tabBtnId = 'nav-' + tabId.replace('tab-', '');
+            const activeBtn = document.getElementById(tabBtnId);
+            if(activeBtn) activeBtn.classList.add('active');
+        }
+
+        // Sidebar Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        // Cloudflare toggle
+        function toggleCloudflareConfig() {
+            const panel = document.getElementById('cfConfigPanel');
+            const icon = document.getElementById('cfToggleIcon');
+            panel.classList.toggle('hidden');
+            icon.classList.toggle('fa-chevron-up');
+            icon.classList.toggle('fa-chevron-down');
+        }
+
+        // Channel select
+        function setSourceChannel(channel) {
+            currentSourceChannel = channel;
+            document.querySelectorAll('.channel-btn').forEach(btn => {
+                btn.className = "channel-btn py-3.5 px-3 bg-[#1e2025] border border-[#26282d] text-gray-400 rounded-xl text-xs font-bold transition";
+            });
+            const activeBtn = document.getElementById('btn-chan-' + channel);
+            if(activeBtn) {
+                activeBtn.className = "channel-btn py-3.5 px-3 bg-blue-600/20 border border-blue-500/50 text-white rounded-xl text-xs font-bold transition";
+            }
+        }
+
+        // Local Storage API Key saving
+        function saveApiKey(key) {
+            localStorage.setItem('gemini_api_key', key);
+            showToast("API Key가 브라우저에 저장되었습니다.");
+        }
+
+        function loadApiKey() {
+            const key = localStorage.getItem('gemini_api_key') || '';
+            document.getElementById('geminiApiKey').value = key;
+        }
+
+        // Toast controller
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msgSpan = document.getElementById('toastMsg');
+            
+            msgSpan.innerText = msg;
+            if(isError) {
+                toast.className = toast.className.replace('border-blue-500/50', 'border-red-500/50');
+                icon.className = "fa-solid fa-circle-xmark text-red-400";
+            } else {
+                toast.className = toast.className.replace('border-red-500/50', 'border-blue-500/50');
+                icon.className = "fa-solid fa-circle-check text-blue-400";
+            }
+            
+            toast.classList.remove('opacity-0', 'translate-y-[-10px]');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+            }, 3000);
+        }
+
+        // Fetch Queue from Backend
+        async function fetchQueues() {
+            try {
+                const res = await fetch('/api/queues');
+                const data = await res.json();
+                sourcingQueue = data.sourcing_queue || {};
+                listingQueue = data.listing_queue || {};
+                
+                updateBadges();
+                renderSourcingQueue();
+                renderListingQueue();
+                renderExportPreview();
+            } catch(e) {
+                console.error("Queue fetch error", e);
+            }
+        }
+
+        function updateBadges() {
+            const srcCount = Object.keys(sourcingQueue).length;
+            const listCount = Object.keys(listingQueue).length;
+            
+            document.getElementById('sourcingBadge').innerText = srcCount;
+            document.getElementById('sourcingQueueCount').innerText = srcCount;
+            document.getElementById('listingBadge').innerText = listCount;
+            document.getElementById('listingQueueCount').innerText = listCount;
+        }
+
+        // Search Action
+        async function searchProducts() {
+            const query = document.getElementById('searchQuery').value.trim();
+            if(!query) {
+                showToast("검색어나 상품 번호를 입력하십시오.", true);
+                return;
+            }
+            
+            const btn = document.querySelector('button[onclick="searchProducts()"]');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 상품 정보를 수집 중입니다...';
+            
+            const cookies = document.getElementById('oyCookies').value.trim();
+            const ua = document.getElementById('oyUa').value.trim();
+            
+            try {
+                const res = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        channel: currentSourceChannel,
+                        cookies: cookies,
+                        ua: ua
+                    })
+                });
+                const data = await res.json();
+                searchResults = data.results || [];
+                
+                if(searchResults.length === 0) {
+                    showToast("수집된 결과가 없습니다. 올리브영 방화벽 우회값을 확인하거나 다른 검색어를 입력해 보세요.", true);
+                    document.getElementById('searchResultsSection').classList.add('hidden');
+                } else {
+                    showToast(`${searchResults.length}개의 상품 정보가 탐색되었습니다.`);
+                    renderSearchResults();
+                    document.getElementById('searchResultsSection').classList.remove('hidden');
+                }
+            } catch(err) {
+                showToast("검색/수집 과정에서 오류가 발생했습니다.", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function renderSearchResults() {
+            const grid = document.getElementById('resultsGrid');
+            grid.innerHTML = '';
+            
+            searchResults.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = "bg-[#141518] border border-[#22242a] rounded-2xl p-4 flex items-center justify-between gap-4";
+                
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <input type="checkbox" id="check_${idx}" class="result-check w-4 h-4 rounded accent-blue-600" checked>
+                        <img src="${item.image_url || 'https://via.placeholder.com/80'}" class="w-16 h-16 rounded-lg object-cover bg-white" alt="">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="bg-[#1e2025] text-xs px-2 py-0.5 rounded font-bold ${item.source === 'Daiso Mall' ? 'text-red-400' : 'text-green-400'}">${item.source}</span>
+                                <span class="text-xs text-gray-500">${item.brand}</span>
+                            </div>
+                            <h4 class="font-semibold text-white mt-1 text-sm">${item.name}</h4>
+                            <p class="text-xs text-gray-400 font-mono mt-0.5">ID: ${item.goods_no}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-white">${item.sale_price.toLocaleString()} KRW</p>
+                        <p class="text-xs text-gray-500 line-through">${item.original_price.toLocaleString()} KRW</p>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function selectAllResults(checked) {
+            document.querySelectorAll('.result-check').forEach(el => el.checked = checked);
+        }
+
+        // Add to Sourcing Queue
+        async function addSelectedToSourcing() {
+            const selected = [];
+            document.querySelectorAll('.result-check').forEach((el, idx) => {
+                if(el.checked) {
+                    selected.push(searchResults[idx]);
+                }
+            });
+            
+            if(selected.length === 0) {
+                showToast("선택된 상품이 없습니다.", true);
+                return;
+            }
+            
+            const btn = document.querySelector('button[onclick="addSelectedToSourcing()"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 대기열에 담고 상세 데이터를 수집 중...';
+            
+            const cookies = document.getElementById('oyCookies').value.trim();
+            const ua = document.getElementById('oyUa').value.trim();
+            
+            try {
+                const res = await fetch('/api/sourcing/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        products: selected,
+                        cookies: cookies,
+                        ua: ua
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast("대기열 추가 및 상세 정보 파싱이 완료되었습니다.");
+                    document.getElementById('searchResultsSection').classList.add('hidden');
+                    document.getElementById('searchQuery').value = '';
+                    await fetchQueues();
+                    switchTab('tab-translation');
+                } else {
+                    showToast("수집 정보를 담는 과정에서 실패했습니다.", true);
+                }
+            } catch(e) {
+                showToast("상세 수집 통신 중 오류가 발생했습니다.", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-plus"></i> 선택한 상품 AI 번역 대기열(Sourcing Queue)에 추가';
+            }
+        }
+
+        function renderSourcingQueue() {
+            const container = document.getElementById('sourcingQueueList');
+            container.innerHTML = '';
+            
+            const items = Object.values(sourcingQueue);
+            if(items.length === 0) {
+                container.innerHTML = `<div class="bg-[#141518] border border-[#22242a] p-10 text-center rounded-3xl text-gray-500 text-sm">대기열에 상품이 없습니다. 먼저 상품을 검색하여 수집하세요.</div>`;
+                return;
+            }
+            
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "bg-[#141518] border border-[#22242a] rounded-3xl p-5 flex items-center justify-between gap-4";
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <img src="${item.image_url || 'https://via.placeholder.com/80'}" class="w-16 h-16 rounded-xl object-cover bg-white shrink-0" alt="">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="bg-[#1e2025] text-xs px-2 py-0.5 rounded font-bold ${item.source === 'Daiso Mall' ? 'text-red-400' : 'text-green-400'}">${item.source}</span>
+                                <span class="text-xs text-gray-400">${item.brand}</span>
+                            </div>
+                            <h4 class="font-semibold text-white mt-1 text-sm">${item.name}</h4>
+                            <p class="text-xs text-gray-500 mt-0.5 font-mono">가액: ${item.sale_price.toLocaleString()} KRW | 무게: ${item.weight} kg</p>
+                        </div>
+                    </div>
+                    <button onclick="removeSourcingItem('${item.goods_no}')" class="text-gray-500 hover:text-red-400 transition p-2"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function removeSourcingItem(goodsNo) {
+            try {
+                const res = await fetch('/api/sourcing/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ goods_no: goodsNo })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast("대기열에서 상품이 삭제되었습니다.");
+                    await fetchQueues();
+                }
+            } catch(e) {
+                showToast("삭제 오류가 발생했습니다.", true);
+            }
+        }
+
+        async function clearSourcingQueue() {
+            if(!confirm("대기열을 완전히 비우시겠습니까?")) return;
+            try {
+                await fetch('/api/sourcing/clear', { method: 'POST' });
+                showToast("대기열이 초기화되었습니다.");
+                await fetchQueues();
+            } catch(e) {
+                showToast("오류 발생", true);
+            }
+        }
+
+        // Run Batch Translation via AI
+        async function runBatchTranslation() {
+            const key = document.getElementById('geminiApiKey').value.trim();
+            const btn = document.querySelector('button[onclick="runBatchTranslation()"]');
+            const originalHtml = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 번역 처리 중...';
+            
+            const progressContainer = document.getElementById('translateProgressBarContainer');
+            const progressBar = document.getElementById('translateProgressBar');
+            const progressPercent = document.getElementById('translateProgressPercent');
+            const progressLabel = document.getElementById('translateProgressLabel');
+            
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.innerText = '0%';
+            
+            const keys = Object.keys(sourcingQueue);
+            const total = keys.length;
+            
+            if(total === 0) {
+                showToast("번역할 상품이 없습니다.", true);
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                progressContainer.classList.add('hidden');
+                return;
+            }
+            
+            for(let i = 0; i < total; i++) {
+                const goodsNo = keys[i];
+                const item = sourcingQueue[goodsNo];
+                progressLabel.innerText = `번역 중 (${i+1}/${total}): ${item.name}`;
+                
+                try {
+                    const res = await fetch('/api/translate/single', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            goods_no: goodsNo,
+                            api_key: key
+                        })
+                    });
+                    const data = await res.json();
+                    
+                    const pct = Math.round(((i + 1) / total) * 100);
+                    progressBar.style.width = pct + '%';
+                    progressPercent.innerText = pct + '%';
+                } catch(e) {
+                    console.error("Single translation error", e);
+                }
+            }
+            
+            showToast("모든 대기열 상품의 번역과 최적화가 완료되었습니다.");
+            progressContainer.classList.add('hidden');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            
+            await fetchQueues();
+            switchTab('tab-pricing');
+        }
+
+        // Recalculate exchange rate values
+        const currencyPresets = {
+            SGD: 1000,
+            USD: 1350,
+            PHP: 24,
+            MYR: 290
+        };
+
+        function setCurrencyPreset(curr) {
+            if(currencyPresets[curr]) {
+                document.getElementById('calcExchangeRate').value = currencyPresets[curr];
+                recalculateAllPrices();
+            }
+        }
+
+        function calculateTargetPriceLocal(sourcing_price_krw, weight_kg, markup, shipping_fee, platform_fee, exchange_rate) {
+            // Apply markup to base price
+            const base_price_krw = sourcing_price_krw * markup;
+            
+            // shipping cost
+            const shipping_fee_krw = weight_kg * shipping_fee;
+            
+            // subtotal
+            const subtotal_krw = base_price_krw + shipping_fee_krw;
+            
+            // Platform fee margin divisor
+            const divisor = (100.0 - platform_fee) / 100.0;
+            const final_price_krw = subtotal_krw / (divisor || 1.0);
+            
+            // Foreign final price target
+            const final_price_target = final_price_krw / exchange_rate;
+            
+            // fees
+            const platform_fee_krw = final_price_krw * (platform_fee / 100.0);
+            
+            // margin
+            const profit_krw = final_price_krw - sourcing_price_krw - shipping_fee_krw - platform_fee_krw;
+            const margin_percent = final_price_krw > 0 ? Math.round((profit_krw / final_price_krw) * 100) : 0;
+            
+            return {
+                base_price_krw: Math.round(base_price_krw),
+                shipping_fee_krw: Math.round(shipping_fee_krw),
+                platform_fee_krw: Math.round(platform_fee_krw),
+                final_price_krw: Math.round(final_price_krw),
+                final_price_target: parseFloat(final_price_target.toFixed(2)),
+                profit_krw: Math.round(profit_krw),
+                margin_percent: margin_percent
+            };
+        }
+
+        function recalculateAllPrices() {
+            const markup = parseFloat(document.getElementById('calcMarkup').value) || 2.0;
+            const shipping = parseFloat(document.getElementById('calcShipping').value) || 10000;
+            const platformFee = parseFloat(document.getElementById('calcPlatformFee').value) || 10.0;
+            const exchangeRate = parseFloat(document.getElementById('calcExchangeRate').value) || 1000;
+            const currency = document.getElementById('calcCurrency').value;
+
+            document.querySelectorAll('.listing-card').forEach(card => {
+                const goodsNo = card.dataset.id;
+                const sourcingPrice = parseFloat(card.dataset.price);
+                const weight = parseFloat(document.getElementById(`weight_${goodsNo}`).value) || 0.1;
+                
+                const prices = calculateTargetPriceLocal(sourcingPrice, weight, markup, shipping, platformFee, exchangeRate);
+                
+                // Set text metrics
+                document.getElementById(`price_tag_${goodsNo}`).innerText = `${prices.final_price_target.toFixed(2)} ${currency}`;
+                document.getElementById(`price_krw_${goodsNo}`).innerText = `${prices.final_price_krw.toLocaleString()} KRW`;
+                
+                // Analysis display
+                document.getElementById(`calc_base_${goodsNo}`).innerText = `${prices.base_price_krw.toLocaleString()} KRW`;
+                document.getElementById(`calc_ship_${goodsNo}`).innerText = `${prices.shipping_fee_krw.toLocaleString()} KRW`;
+                document.getElementById(`calc_fee_${goodsNo}`).innerText = `${prices.platform_fee_krw.toLocaleString()} KRW`;
+                
+                const profitEl = document.getElementById(`calc_profit_${goodsNo}`);
+                profitEl.innerText = `${prices.profit_krw.toLocaleString()} KRW (${prices.margin_percent}%)`;
+                if(prices.profit_krw >= 0) {
+                    profitEl.className = "text-emerald-400 font-bold";
+                } else {
+                    profitEl.className = "text-red-400 font-bold";
+                }
+                
+                // Override target check
+                const overrideInput = document.getElementById(`override_${goodsNo}`);
+                if(!document.getElementById(`override_check_${goodsNo}`).checked) {
+                    overrideInput.value = prices.final_price_target;
+                }
+            });
+        }
+
+        function handleOverrideToggle(goodsNo) {
+            const chk = document.getElementById(`override_check_${goodsNo}`);
+            const input = document.getElementById(`override_${goodsNo}`);
+            input.disabled = !chk.checked;
+            if(!chk.checked) {
+                recalculateAllPrices();
+            }
+        }
+
+        async function saveListingChanges(goodsNo) {
+            const title = document.getElementById(`title_${goodsNo}`).value.trim();
+            const desc = document.getElementById(`desc_${goodsNo}`).value.trim();
+            const tags = document.getElementById(`tags_${goodsNo}`).value.trim().split(',').map(t=>t.trim()).filter(t=>t);
+            const weight = parseFloat(document.getElementById(`weight_${goodsNo}`).value) || 0.1;
+            const stock = parseInt(document.getElementById(`stock_${goodsNo}`).value) || 100;
+            
+            const isOverridden = document.getElementById(`override_check_${goodsNo}`).checked;
+            const overridePrice = parseFloat(document.getElementById(`override_${goodsNo}`).value) || 0.0;
+            
+            // Get local currency final calculated price if not overridden
+            let finalPrice = overridePrice;
+            if(!isOverridden) {
+                const card = document.querySelector(`.listing-card[data-id="${goodsNo}"]`);
+                const sourcingPrice = parseFloat(card.dataset.price);
+                const markup = parseFloat(document.getElementById('calcMarkup').value) || 2.0;
+                const shipping = parseFloat(document.getElementById('calcShipping').value) || 10000;
+                const platformFee = parseFloat(document.getElementById('calcPlatformFee').value) || 10.0;
+                const exchangeRate = parseFloat(document.getElementById('calcExchangeRate').value) || 1000;
+                
+                const prices = calculateTargetPriceLocal(sourcingPrice, weight, markup, shipping, platformFee, exchangeRate);
+                finalPrice = prices.final_price_target;
+            }
+            
+            try {
+                const res = await fetch('/api/listing/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        goods_no: goodsNo,
+                        title: title,
+                        description: desc,
+                        tags: tags,
+                        weight: weight,
+                        stock: stock,
+                        calculated_price: finalPrice
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast("상품 수정사항이 서버에 저장되었습니다.");
+                    await fetchQueues();
+                }
+            } catch(e) {
+                showToast("수정 저장 실패", true);
+            }
+        }
+
+        async function removeListingItem(goodsNo) {
+            if(!confirm("이 상품을 보관함에서 지우시겠습니까?")) return;
+            try {
+                const res = await fetch('/api/listing/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ goods_no: goodsNo })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast("상품 삭제 완료.");
+                    await fetchQueues();
+                }
+            } catch(e) {
+                showToast("삭제 오류", true);
+            }
+        }
+
+        function renderListingQueue() {
+            const container = document.getElementById('listingQueueList');
+            container.innerHTML = '';
+            
+            const items = Object.values(listingQueue);
+            if(items.length === 0) {
+                container.innerHTML = `<div class="bg-[#141518] border border-[#22242a] p-10 text-center rounded-3xl text-gray-500 text-sm">보관함이 비어 있습니다. Sourcing Queue에서 AI 번역을 완료하세요.</div>`;
+                return;
+            }
+            
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "listing-card bg-[#141518] border border-[#22242a] rounded-3xl p-6 space-y-4";
+                card.dataset.id = item.goods_no;
+                card.dataset.price = item.sale_price;
+                
+                const tagsStr = (item.tags || []).join(', ');
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex gap-4">
+                            <img src="${item.image_url || 'https://via.placeholder.com/80'}" class="w-20 h-20 rounded-xl object-cover bg-white shrink-0" alt="">
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="bg-[#1e2025] text-xs px-2 py-0.5 rounded font-bold text-blue-400">${item.source}</span>
+                                    <span class="text-xs text-gray-400">${item.brand_english || item.brand}</span>
+                                </div>
+                                <h4 class="font-bold text-white mt-1 text-base">${item.translated_title || item.name}</h4>
+                                <p class="text-xs text-gray-500 mt-0.5 font-mono">ID: ${item.goods_no} | 매입가: ${item.sale_price.toLocaleString()} KRW</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span id="price_tag_${item.goods_no}" class="text-2xl font-black text-amber-400">0.00 SGD</span>
+                            <p id="price_krw_${item.goods_no}" class="text-xs text-gray-500">0 KRW</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2 border-t border-[#1e2025]">
+                        <div class="md:col-span-2 space-y-4">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">영문 상품명 (Product Name)</label>
+                                <input type="text" id="title_${item.goods_no}" value="${item.translated_title || ''}" class="w-full bg-[#0a0a0c] text-sm text-gray-200 px-4 py-2.5 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">영문 상세 정보 (Product Description)</label>
+                                <textarea id="desc_${item.goods_no}" rows="5" class="w-full bg-[#0a0a0c] text-xs text-gray-300 px-4 py-3 border border-[#26282d] rounded-xl outline-none focus:border-amber-500 custom-scrollbar">${item.translated_description || ''}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-500 mb-1 uppercase">검색 태그 (Hashtags - Comma separated)</label>
+                                <input type="text" id="tags_${item.goods_no}" value="${tagsStr}" class="w-full bg-[#0a0a0c] text-xs text-gray-300 px-4 py-2.5 border border-[#26282d] rounded-xl outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 bg-[#0a0a0c] p-4 rounded-2xl border border-[#1e2025]">
+                            <h5 class="text-xs font-bold text-gray-400">등록 조건 및 마진 시뮬레이션</h5>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">무게 (kg)</label>
+                                    <input type="number" id="weight_${item.goods_no}" value="${item.weight || 0.1}" step="0.01" min="0.01" oninput="recalculateAllPrices()" class="w-full bg-[#141518] text-xs text-gray-300 px-3 py-2 border border-[#26282d] rounded-lg outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] text-gray-500 mb-1">재고 수량</label>
+                                    <input type="number" id="stock_${item.goods_no}" value="${item.stock || 100}" step="1" min="0" class="w-full bg-[#141518] text-xs text-gray-300 px-3 py-2 border border-[#26282d] rounded-lg outline-none">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5 pt-2 text-xs border-t border-[#1e2025] text-gray-400">
+                                <div class="flex justify-between"><span>마크업 공급가:</span><span id="calc_base_${item.goods_no}" class="font-mono text-white">0 KRW</span></div>
+                                <div class="flex justify-between"><span>책정 배송비:</span><span id="calc_ship_${item.goods_no}" class="font-mono text-white">0 KRW</span></div>
+                                <div class="flex justify-between"><span>수수료 예산:</span><span id="calc_fee_${item.goods_no}" class="font-mono text-white">0 KRW</span></div>
+                                <div class="flex justify-between font-bold text-gray-300 pt-1 border-t border-[#222]">
+                                    <span>실질 마진 이익:</span>
+                                    <span id="calc_profit_${item.goods_no}">0 KRW (0%)</span>
+                                </div>
+                            </div>
+
+                            <div class="pt-2 border-t border-[#1e2025] space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="override_check_${item.goods_no}" onchange="handleOverrideToggle('${item.goods_no}')" class="w-3.5 h-3.5 rounded accent-amber-500">
+                                    <label for="override_check_${item.goods_no}" class="text-[10px] text-gray-400 font-bold select-none cursor-pointer">최종 판매가 수동 변경</label>
+                                </div>
+                                <input type="number" id="override_${item.goods_no}" value="0" step="0.01" min="0.01" disabled class="w-full bg-[#141518] text-sm text-amber-400 font-bold px-3 py-2 border border-[#26282d] rounded-lg outline-none disabled:opacity-50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t border-[#1e2025]">
+                        <button onclick="removeListingItem('${item.goods_no}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold py-2.5 px-5 rounded-xl transition">삭제</button>
+                        <button onclick="saveListingChanges('${item.goods_no}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 px-6 rounded-xl shadow transition">정보 저장</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            
+            recalculateAllPrices();
+        }
+
+        function renderExportPreview() {
+            const tbody = document.getElementById('exportPreviewList');
+            tbody.innerHTML = '';
+            
+            const items = Object.values(listingQueue);
+            if(items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">보관함에 저장 완료된 상품이 없어 프리뷰를 표시할 수 없습니다.</td></tr>`;
+                return;
+            }
+            
+            items.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-gray-400">${item.source}</td>
+                    <td class="py-3 px-4 text-white font-semibold">${item.brand_english || item.brand}</td>
+                    <td class="py-3 px-4 text-gray-300 max-w-[200px] truncate">${item.translated_title || item.name}</td>
+                    <td class="py-3 px-4 font-mono">${item.weight} kg</td>
+                    <td class="py-3 px-4 font-mono">${item.stock} 개</td>
+                    <td class="py-3 px-4 text-amber-400 font-bold font-mono">${parseFloat(item.calculated_price || 0).toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function downloadTemplate(platform) {
+            const items = Object.values(listingQueue);
+            if(items.length === 0) {
+                showToast("내보낼 상품 데이터가 보관함에 없습니다.", true);
+                return;
+            }
+            
+            const btn = document.querySelector(`button[onclick="downloadTemplate('${platform}')"]`);
+            const orig = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 내보내는 중...';
+            
+            try {
+                // First save all parameters on screen
+                const exchangeRate = parseFloat(document.getElementById('calcExchangeRate').value) || 1000;
+                
+                const res = await fetch(`/api/export/${platform}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rate: exchangeRate })
+                });
+                
+                if(res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = platform === 'shopee' ? 'shopee_mass_upload.xlsx' : 'shopify_products.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    showToast("대량등록 파일을 다운로드했습니다.");
+                } else {
+                    showToast("내보내기 실패", true);
+                }
+            } catch(e) {
+                showToast("통신 오류 발생", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            }
+        }
+
+        async function resetListingQueue() {
+            if(!confirm("스튜디오 보관함의 번역 및 세팅된 모든 상품 데이터를 완전 삭제하시겠습니까?")) return;
+            try {
+                const res = await fetch('/api/listing/clear', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    showToast("보관함이 초기화되었습니다.");
+                    await fetchQueues();
+                    switchTab('tab-sourcing');
+                }
+            } catch(e) {
+                showToast("초기화 실패", true);
+            }
+        }
+
+        let qrCodeInstance = null;
+
+        async function showQrModal() {
+            const modal = document.getElementById('qrModal');
+            const container = document.getElementById('qrcodeContainer');
+            const urlText = document.getElementById('qrUrlText');
+            
+            container.innerHTML = '';
+            
+            let targetUrl = window.location.origin;
+            
+            // Fetch local network IP from backend if available
+            try {
+                const res = await fetch('/api/info');
+                const info = await res.json();
+                if(info.network_url && !window.location.hostname.includes('huggingface')) {
+                    targetUrl = info.network_url;
+                }
+            } catch(e) {}
+            
+            urlText.innerText = targetUrl;
+            
+            qrCodeInstance = new QRCode(container, {
+                text: targetUrl,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+        }
+
+        // Category Selector JS
+        let currentSearchMode = 'keyword';
+        function selectCategory(catNo, name) {
+            document.getElementById('searchQuery').value = `https://www.oliveyoung.co.kr/store/display/getCategoryShop.do?dispCatNo=${catNo}`;
+            currentSearchMode = 'category';
+            showToast(`카테고리 '${name}'가 선택되었습니다. 하단의 '스토어 검색 및 수집 시작' 버튼을 누르세요.`);
+        }
+
+        // Barcode Scanner Controller JS
+        let html5QrCodeScanner = null;
+
+        function openBarcodeModal() {
+            document.getElementById('barcodeModal').classList.remove('hidden');
+            switchBarcodeMode('file');
+        }
+
+        function closeBarcodeModal() {
+            document.getElementById('barcodeModal').classList.add('hidden');
+            stopCameraScanner();
+        }
+
+        function switchBarcodeMode(mode) {
+            const btnFile = document.getElementById('tab-bc-file');
+            const btnCam = document.getElementById('tab-bc-cam');
+            const secFile = document.getElementById('bcFileSection');
+            const secCam = document.getElementById('bcCamSection');
+            
+            if(mode === 'file') {
+                btnFile.className = "py-2.5 rounded-lg bg-[#1e2025] text-white font-bold";
+                btnCam.className = "py-2.5 rounded-lg text-gray-400 font-bold";
+                secFile.classList.remove('hidden');
+                secCam.classList.add('hidden');
+                stopCameraScanner();
+            } else {
+                btnCam.className = "py-2.5 rounded-lg bg-[#1e2025] text-white font-bold";
+                btnFile.className = "py-2.5 rounded-lg text-gray-400 font-bold";
+                secCam.classList.remove('hidden');
+                secFile.classList.add('hidden');
+                startCameraScanner();
+            }
+        }
+
+        async function handleBarcodeFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusEl = document.getElementById('bcStatus');
+            statusEl.className = "text-xs text-blue-400 font-bold bg-blue-500/10 p-3 rounded-xl border border-blue-500/20";
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "이미지에서 바코드 추출 중...";
+
+            const html5QrCode = new Html5Qrcode("interactiveScanner");
+            try {
+                const decodedText = await html5QrCode.scanFile(file, true);
+                statusEl.className = "text-xs text-emerald-400 font-bold bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20";
+                statusEl.innerText = `바코드 감지 성공! (${decodedText})`;
+                showToast(`바코드 감지: ${decodedText}`);
+                
+                document.getElementById('searchQuery').value = decodedText;
+                closeBarcodeModal();
+                searchProducts();
+            } catch (err) {
+                statusEl.className = "text-xs text-red-400 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20";
+                statusEl.innerText = "바코드를 감지하지 못했습니다. 더 선명한 바코드 이미지를 사용해 보세요.";
+            }
+        }
+
+        function startCameraScanner() {
+            if(!html5QrCodeScanner) {
+                html5QrCodeScanner = new Html5Qrcode("interactiveScanner");
+            }
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+            
+            html5QrCodeScanner.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText, decodedResult) => {
+                    showToast(`카메라 바코드 감지: ${decodedText}`);
+                    document.getElementById('searchQuery').value = decodedText;
+                    closeBarcodeModal();
+                    searchProducts();
+                },
+                (errorMessage) => {
+                    // Ignore parse loop error
+                }
+            ).catch(err => {
+                const statusEl = document.getElementById('bcStatus');
+                statusEl.classList.remove('hidden');
+                statusEl.className = "text-xs text-red-400 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20";
+                statusEl.innerText = "카메라에 접근할 수 없습니다. 권한을 확인하세요.";
+            });
+        }
+
+        function stopCameraScanner() {
+            if(html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+                html5QrCodeScanner.stop().then(() => {
+                    console.log("Scanner stopped");
+                }).catch(err => console.error(err));
+            }
+        }
+
+        // Product Photo AI Vision Recognition JS
+        async function handlePhotoSearchSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showToast("Gemini Vision AI가 제품 라벨과 상표 글자를 정밀 분석 중입니다...");
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('api_key', getApiKey());
+
+            try {
+                const res = await fetch('/api/recognize_product_image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await res.json();
+
+                if (result.success && result.data) {
+                    const data = result.data;
+                    showToast(`제품 정확히 감지: [${data.brand}] ${data.product_name}`);
+                    
+                    document.getElementById('searchQuery').value = data.search_query || `${data.brand} ${data.product_name}`;
+                    searchProducts();
+                } else {
+                    showToast(result.msg || "제품 인식 실패. API Key를 확인해 주세요.", true);
+                }
+            } catch (e) {
+                showToast("제품 사진 인식 중 오류가 발생했습니다.", true);
+            }
+        }
+
+        // AI Twin Product Image Generation JS
+        async function generateAiProductImage(goodsNo, brand, name, visualDesc) {
+            showToast("Gemini Imagen 3가 고품질 AI 동일 제품샷을 생성 중입니다...");
+            try {
+                const res = await fetch('/api/generate_image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        brand: brand,
+                        name: name,
+                        visual_description: visualDesc || `${brand} ${name} K-beauty skincare packaging with clear typography`,
+                        style: 'studio',
+                        api_key: getApiKey()
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.image_url) {
+                    showToast("AI 고품질 제품샷 생성 완료!");
+                    const imgEl = document.getElementById(`img-${goodsNo}`);
+                    if (imgEl) {
+                        imgEl.src = data.image_url;
+                    }
+                } else {
+                    showToast(data.msg || "AI 이미지 생성 실패. API Key를 확인하세요.", true);
+                }
+            } catch(e) {
+                showToast("AI 이미지 생성 중 오류 발생", true);
+            }
+        }
+
+        async function logout() {
+
+
+
+            if(!confirm("디바이스 연결을 해제(로그아웃)하시겠습니까?")) return;
+            try {
+                const res = await fetch('/api/logout', { method: 'POST' });
+                const data = await res.json();
+                if(data.success) {
+                    window.location.reload();
+                }
+            } catch(e) {
+                showToast("오류 발생", true);
+            }
+        }
+
+        // Initialize Page
+        window.addEventListener('load', () => {
+            loadApiKey();
+            fetchQueues();
+        });
+    </script>
+</body>
+</html>
