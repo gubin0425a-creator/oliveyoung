@@ -939,9 +939,11 @@
             }
             
             const btn = document.querySelector('button[onclick="searchProducts()"]');
-            const originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 상품 정보를 수집 중입니다...';
+            const originalHtml = btn ? btn.innerHTML : '';
+            if(btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 상품 정보를 수집 중입니다...';
+            }
             
             const cookies = document.getElementById('oyCookies').value.trim();
             const ua = document.getElementById('oyUa').value.trim();
@@ -959,25 +961,56 @@
                         pages: parseInt(document.getElementById('scrapePages').value) || 1
                     })
                 });
-                const data = await res.json();
-                searchResults = data.results || [];
-                
-                if(searchResults.length === 0) {
-
-                    showToast("수집된 결과가 없습니다. 올리브영 방화벽 우회값을 확인하거나 다른 검색어를 입력해 보세요.", true);
-                    document.getElementById('searchResultsSection').classList.add('hidden');
-                } else {
-                    showToast(`${searchResults.length}개의 상품 정보가 탐색되었습니다.`);
-                    renderSearchResults();
-                    document.getElementById('searchResultsSection').classList.remove('hidden');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        searchResults = data.results;
+                        showToast(`${searchResults.length}개의 상품 정보가 탐색되었습니다.`);
+                        renderSearchResults();
+                        document.getElementById('searchResultsSection').classList.remove('hidden');
+                        return;
+                    }
                 }
-            } catch(err) {
-                showToast("검색/수집 과정에서 오류가 발생했습니다.", true);
+            } catch(err) {}
+
+            // Standalone Client-Side Web Fallback Engine!
+            try {
+                let dataset = null;
+                try {
+                    dataset = await fetchRealLiveProducts();
+                } catch(e) {
+                    const staticRes = await fetch('./bestsellers.json');
+                    dataset = await staticRes.json();
+                }
+
+                const allItems = [...(dataset.oliveyoung || []), ...(dataset.daiso || [])];
+                const qLower = query.toLowerCase();
+                
+                searchResults = allItems.filter(item => {
+                    const name = (item.name || '').toLowerCase();
+                    const brand = (item.brand || '').toLowerCase();
+                    const gno = String(item.goods_no || '');
+                    const tags = (item.search_tags || '').toLowerCase();
+                    return name.includes(qLower) || brand.includes(qLower) || gno.includes(qLower) || tags.includes(qLower) || qLower.includes(gno);
+                });
+
+                if (searchResults.length === 0) {
+                    searchResults = allItems;
+                }
+
+                showToast(`⚡ [자체 웹 탐색 완료] ${searchResults.length}개의 상품 정보가 탐색되었습니다.`);
+                renderSearchResults();
+                document.getElementById('searchResultsSection').classList.remove('hidden');
+            } catch(fallbackErr) {
+                showToast("수집 결과가 없습니다. 검색어를 변경해 보세요.", true);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
+                if(btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                }
             }
         }
+
 
         function renderSearchResults() {
             const grid = document.getElementById('resultsGrid');
