@@ -37,7 +37,8 @@ def get_local_ip():
         return "127.0.0.1"
 
 
-from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail, scrape_category as scrape_oy_category
+from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail, scrape_category as scrape_oy_category, get_best_sellers as get_oy_bestsellers
+
 from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail
 
 import base64
@@ -265,7 +266,15 @@ def api_auto_config():
     else:
         return jsonify(load_auto_config())
 
+@app.route('/api/bestsellers', methods=['GET', 'POST'])
+def api_bestsellers():
+    cookies_str = request.args.get('cookies', '') or (request.json or {}).get('cookies', '')
+    ua = request.args.get('ua', '') or (request.json or {}).get('ua', '')
+    bests = get_oy_bestsellers(custom_cookies_str=cookies_str, custom_ua=ua)
+    return jsonify({'results': bests})
+
 @app.route('/api/queues')
+
 
 def api_queues():
     return jsonify(load_queues())

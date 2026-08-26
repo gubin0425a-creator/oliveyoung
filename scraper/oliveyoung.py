@@ -226,6 +226,82 @@ def scrape_category(cat_input, page_count=1, custom_cookies_str=None, custom_ua=
             
     return all_products
 
+def get_best_sellers(custom_cookies_str=None, custom_ua=None):
+    """
+    Fetches real-time verified best sellers from Olive Young.
+    """
+    url = "https://www.oliveyoung.co.kr/store/main/getBestList.do?dispCatNo=10000010001&fltDispCatNo=&pageIdx=1&rowsPerPage=24"
+    headers, cookies = get_request_params(custom_cookies_str, custom_ua)
+    
+    products = []
+    try:
+        res = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            items = soup.select("ul.cate_prd_list li, .prd_info")
+            for rank, item in enumerate(items[:16], 1):
+                try:
+                    link_elem = item.select_one("a.prd_thumb, a.prd_info_area") or item.select_one("a")
+                    if not link_elem:
+                        continue
+                    
+                    goods_no = item.get("data-ref-goodsno")
+                    if not goods_no and link_elem.get("href"):
+                        href = link_elem.get("href")
+                        match = re.search(r"goodsNo=([^&]+)", href)
+                        if match:
+                            goods_no = match.group(1)
+                    if not goods_no:
+                        continue
+                        
+                    brand_elem = item.select_one(".tx_brand, .tx_brand_name, .brand")
+                    brand = brand_elem.get_text(strip=True) if brand_elem else "Generic"
+                    
+                    name_elem = item.select_one(".tx_name, .prd_name, .tx_prd_name")
+                    name = name_elem.get_text(strip=True) if name_elem else ""
+                    if not name:
+                        continue
+                        
+                    img_elem = item.select_one("img")
+                    img_url = ""
+                    if img_elem:
+                        img_url = img_elem.get("data-original") or img_elem.get("src") or ""
+                        if img_url.startswith("//"):
+                            img_url = "https:" + img_url
+                            
+                    org_price_elem = item.select_one(".tx_org, .price-1")
+                    cur_price_elem = item.select_one(".tx_cur, .price-2")
+                    
+                    org_price_str = org_price_elem.get_text(strip=True) if org_price_elem else ""
+                    cur_price_str = cur_price_elem.get_text(strip=True) if cur_price_elem else ""
+                    
+                    org_price = int(re.sub(r"[^\d]", "", org_price_str)) if org_price_str and re.sub(r"[^\d]", "", org_price_str) else None
+                    cur_price = int(re.sub(r"[^\d]", "", cur_price_str)) if cur_price_str and re.sub(r"[^\d]", "", cur_price_str) else 0
+                    if not org_price:
+                        org_price = cur_price
+                        
+                    badge = f"🥇 랭킹 #{rank}위" if rank == 1 else (f"🥈 랭킹 #{rank}위" if rank == 2 else (f"🥉 랭킹 #{rank}위" if rank == 3 else f"🔥 베스트 #{rank}위"))
+                    
+                    products.append({
+                        "source": "Olive Young Best",
+                        "rank": rank,
+                        "evidence_badge": badge,
+                        "goods_no": goods_no,
+                        "brand": brand,
+                        "name": name,
+                        "original_price": org_price,
+                        "sale_price": cur_price,
+                        "image_url": img_url,
+                        "url": f"https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo={goods_no}"
+                    })
+                except Exception:
+                    continue
+    except Exception as e:
+        print(f"Error fetching Best Sellers: {e}")
+        
+    return products
+
+
 
 def fetch_product_detail(goods_no, custom_cookies_str=None, custom_ua=None):
     """

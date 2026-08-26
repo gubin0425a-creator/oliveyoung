@@ -362,6 +362,27 @@
                     </button>
                 </div>
 
+                <!-- Verified Best-Sellers Tile Grid Section -->
+                <div class="space-y-4 pt-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-fire text-pink-500 animate-bounce"></i> 최근 실시간 판매 검증 K-뷰티 베스트셀러 (Best Seller Tile Grid)
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-0.5">실시간 판매순위 1위~16위 검증 완료 인기 상품입니다. 클릭 한 번으로 수집 대기열에 담으세요.</p>
+                        </div>
+                        <button type="button" onclick="loadBestSellerTiles()" class="bg-[#1e2025] hover:bg-blue-600/30 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-xl border border-[#26282d] transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-right"></i> 실시간 순위 새로고침
+                        </button>
+                    </div>
+
+                    <!-- Responsive Tile Grid (2 cols on mobile, 4 cols on desktop) -->
+                    <div id="bestSellerTileGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+
+
                 <!-- Search Results Section -->
                 <div id="searchResultsSection" class="hidden space-y-4">
                     <div class="flex items-center justify-between">
@@ -1520,11 +1541,109 @@
             }
         }
 
+        // Best-Seller Tile Grid JS
+        let bestSellerItems = [];
+
+        async function loadBestSellerTiles() {
+            const grid = document.getElementById('bestSellerTileGrid');
+            if(!grid) return;
+            grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 실시간 판매 1위~16위 베스트셀러 순위 데이터를 불러오는 중...</div>';
+            
+            try {
+                const cookies = document.getElementById('oyCookies').value.trim();
+                const ua = document.getElementById('oyUa').value.trim();
+                
+                const res = await fetch(await getBackendUrl('/api/bestsellers'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cookies: cookies, ua: ua })
+                });
+                const data = await res.json();
+                bestSellerItems = data.results || [];
+                
+                grid.innerHTML = '';
+                if(bestSellerItems.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-gray-500">실시간 순위 데이터를 불러오지 못했습니다. 검색창을 이용해 검색해 보세요.</div>';
+                    return;
+                }
+                
+                bestSellerItems.forEach((item, idx) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-[#141518] border border-[#22242a] hover:border-pink-500/50 rounded-2xl p-3.5 flex flex-col justify-between transition group shadow-lg relative overflow-hidden";
+                    
+                    const origPrice = item.original_price || item.sale_price;
+                    const salePrice = item.sale_price || 0;
+                    const discountRate = (origPrice > salePrice && origPrice > 0) ? Math.round((1 - salePrice / origPrice) * 100) : 0;
+                    
+                    card.innerHTML = `
+                        <div class="space-y-2.5">
+                            <div class="relative rounded-xl overflow-hidden bg-white aspect-square flex items-center justify-center">
+                                <img src="${item.image_url || 'https://via.placeholder.com/200'}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="">
+                                <span class="absolute top-2 left-2 bg-gradient-to-r from-pink-600 to-purple-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
+                                    ${item.evidence_badge || `🥇 랭킹 #${idx+1}위`}
+                                </span>
+                                ${discountRate > 0 ? `<span class="absolute top-2 right-2 bg-black/80 text-pink-400 border border-pink-500/40 text-[10px] font-black px-1.5 py-0.5 rounded">🔥 ${discountRate}%</span>` : ''}
+                            </div>
+                            
+                            <div>
+                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${item.brand}</span>
+                                <h4 class="font-bold text-white text-xs leading-snug line-clamp-2 mt-0.5 group-hover:text-pink-400 transition">${item.name}</h4>
+                            </div>
+                        </div>
+                        
+                        <div class="pt-2.5 mt-2.5 border-t border-[#1e2025] flex items-center justify-between gap-2">
+                            <div>
+                                <p class="text-xs font-extrabold text-white">${salePrice.toLocaleString()}원</p>
+                                ${origPrice > salePrice ? `<p class="text-[10px] text-gray-500 line-through">${origPrice.toLocaleString()}원</p>` : ''}
+                            </div>
+                            
+                            <button type="button" onclick="addSingleBestSellerToSourcing(${idx})" class="bg-blue-600/20 hover:bg-blue-600 hover:text-white border border-blue-500/40 text-blue-400 text-xs font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1 shrink-0">
+                                <i class="fa-solid fa-plus text-[10px]"></i> 담기
+                            </button>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch(e) {
+                grid.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-red-400">순위 데이터 로딩 중 오류 발생</div>';
+            }
+        }
+
+        async function addSingleBestSellerToSourcing(idx) {
+            const item = bestSellerItems[idx];
+            if(!item) return;
+            
+            showToast(`'${item.name}' 대기열 담기 및 상세 파싱 중...`);
+            try {
+                const cookies = document.getElementById('oyCookies').value.trim();
+                const ua = document.getElementById('oyUa').value.trim();
+                
+                const res = await fetch(await getBackendUrl('/api/sourcing/add'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        products: [item],
+                        cookies: cookies,
+                        ua: ua
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast(`'${item.brand}' 대기열 추가 완료!`);
+                    await fetchQueues();
+                }
+            } catch(e) {
+                showToast("담기 실패", true);
+            }
+        }
+
         // Initialize Page
         window.addEventListener('load', () => {
             loadApiKey();
             fetchQueues();
+            loadBestSellerTiles();
         });
     </script>
 </body>
+
 </html>
