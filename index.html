@@ -1766,33 +1766,118 @@
         let oyBestItems = [];
         let dsBestItems = [];
 
+        async function fetchRealLiveProducts() {
+            const cookies = document.getElementById('oyCookies')?.value.trim() || '';
+            const ua = document.getElementById('oyUa')?.value.trim() || '';
+            
+            // 1. Try Local Backend Scraper
+            try {
+                const res = await fetch(await getBackendUrl('/api/bestsellers'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cookies: cookies, ua: ua })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if ((data.oliveyoung && data.oliveyoung.length > 0) || (data.daiso && data.daiso.length > 0)) {
+                        return data;
+                    }
+                }
+            } catch(e) {}
+
+            // 2. Try Direct Web CORS Live Scraper
+            try {
+                const targetUrl = 'https://www.oliveyoung.co.kr/store/main/getBestList.do?dispCatNo=10000010001&rowsPerPage=24';
+                const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+                const res = await fetch(proxyUrl);
+                const json = await res.json();
+                
+                let oyReal = [];
+                if (json && json.contents) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(json.contents, 'text/html');
+                    const items = doc.querySelectorAll('ul.cate_prd_list li, .prd_info');
+                    
+                    items.forEach((item, idx) => {
+                        const link = item.querySelector('a.prd_thumb, a.prd_info_area, a');
+                        if (!link) return;
+                        
+                        let goodsNo = item.getAttribute('data-ref-goodsno');
+                        if (!goodsNo && link.href) {
+                            const m = link.href.match(/goodsNo=([^&]+)/);
+                            if (m) goodsNo = m[1];
+                        }
+                        if (!goodsNo) return;
+                        
+                        const brand = item.querySelector('.tx_brand, .tx_brand_name, .brand')?.innerText.trim() || 'K-Beauty';
+                        const name = item.querySelector('.tx_name, .prd_name, .tx_prd_name')?.innerText.trim() || '';
+                        if (!name) return;
+                        
+                        const img = item.querySelector('img');
+                        let imgUrl = img ? (img.getAttribute('data-original') || img.getAttribute('src') || '') : '';
+                        if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
+                        
+                        const orgPriceStr = item.querySelector('.tx_org, .price-1')?.innerText.replace(/[^\d]/g, '') || '';
+                        const curPriceStr = item.querySelector('.tx_cur, .price-2')?.innerText.replace(/[^\d]/g, '') || '';
+                        const orgPrice = orgPriceStr ? parseInt(orgPriceStr) : (curPriceStr ? parseInt(curPriceStr) : 0);
+                        const curPrice = curPriceStr ? parseInt(curPriceStr) : orgPrice;
+                        
+                        oyReal.push({
+                            source: 'Olive Young',
+                            rank: idx + 1,
+                            evidence_badge: `🥇 실시간 #${idx + 1}위`,
+                            goods_no: goodsNo,
+                            brand: brand,
+                            name: name,
+                            original_price: orgPrice,
+                            sale_price: curPrice,
+                            image_url: imgUrl,
+                            url: `https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=${goodsNo}`,
+                            weight: 0.3
+                        });
+                    });
+                }
+
+                // Live Daiso Fetch
+                let dsReal = [];
+                try {
+                    const dsRes = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://www.daisomall.co.kr/ssn/search/SearchGoods?keyword=%EB%B7%B0%ED%8B%B0'));
+                    const dsJson = await dsRes.json();
+                    const dsParsed = JSON.parse(dsJson.contents);
+                    const dsDocs = dsParsed?.resultSet?.result?.[1]?.resultDocuments || [];
+                    dsReal = dsDocs.map(doc => ({
+                        source: 'Daiso Mall',
+                        goods_no: String(doc.pdNo),
+                        brand: doc.brndNm || 'Daiso',
+                        name: doc.exhPdNm || doc.pdNm || '',
+                        original_price: parseInt(doc.pdPrc || 0),
+                        sale_price: parseInt(doc.pdPrc || 0),
+                        image_url: doc.pdImgUrl ? (doc.pdImgUrl.startsWith('/') ? 'https://cdn.daisomall.co.kr' + doc.pdImgUrl : doc.pdImgUrl) : '',
+                        url: `https://www.daisomall.co.kr/pd/pdr/SCR_PDR_0001?pdNo=${doc.pdNo}`,
+                        weight: 0.1
+                    }));
+                } catch(e) {}
+
+                if (oyReal.length > 0 || dsReal.length > 0) {
+                    return { oliveyoung: oyReal, daiso: dsReal };
+                }
+            } catch(e) {}
+
+            // Fallback dataset
+            const staticRes = await fetch('./bestsellers.json');
+            return await staticRes.json();
+        }
+
         async function loadBestSellerTiles() {
             const oyEl = document.getElementById('oyCarousel');
             const dsEl = document.getElementById('dsCarousel');
             if(!oyEl || !dsEl) return;
             
-            oyEl.innerHTML = '<div class="py-8 text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 올리브영 베스트셀러 가로 슬라이더 데이터 불러오는 중...</div>';
-            dsEl.innerHTML = '<div class="py-8 text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 다이소몰 뷰티 인기 상품 가로 슬라이더 데이터 불러오는 중...</div>';
+            oyEl.innerHTML = '<div class="py-8 text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 올리브영 실시간 데이터를 긁어오는 중...</div>';
+            dsEl.innerHTML = '<div class="py-8 text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 다이소몰 실시간 상품을 긁어오는 중...</div>';
             
             try {
-                let data = null;
-                try {
-                    const cookies = document.getElementById('oyCookies').value.trim();
-                    const ua = document.getElementById('oyUa').value.trim();
-                    const res = await fetch(await getBackendUrl('/api/bestsellers'), {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ cookies: cookies, ua: ua })
-                    });
-                    if (res.ok) {
-                        data = await res.json();
-                    }
-                } catch(e) {}
-                
-                if (!data || (!data.oliveyoung && !data.daiso)) {
-                    const staticRes = await fetch('./bestsellers.json');
-                    data = await staticRes.json();
-                }
+                const data = await fetchRealLiveProducts();
                 
                 oyBestItems = data.oliveyoung || [];
                 dsBestItems = data.daiso || [];
@@ -1800,10 +1885,11 @@
                 renderCarouselItems('oyCarousel', oyBestItems, 'oy');
                 renderCarouselItems('dsCarousel', dsBestItems, 'ds');
             } catch(e) {
-                if(oyEl) oyEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 로딩 오류</div>';
-                if(dsEl) dsEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 로딩 오류</div>';
+                if(oyEl) oyEl.innerHTML = '<div class="py-4 text-xs text-red-400">실시간 데이터 로딩 오류</div>';
+                if(dsEl) dsEl.innerHTML = '<div class="py-4 text-xs text-red-400">실시간 데이터 로딩 오류</div>';
             }
         }
+
 
 
         function renderCarouselItems(containerId, items, type) {
