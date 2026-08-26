@@ -5,9 +5,26 @@ import os
 import uuid
 import json
 import time
+import threading
 import socket
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, make_response, redirect, send_file
+
+AUTO_CONFIG_FILE = os.path.join(DATA_DIR, 'auto_config.json')
+
+def load_auto_config():
+    return load_json(AUTO_CONFIG_FILE, {
+        "enabled": False,
+        "interval_minutes": 60,
+        "categories": ["10000010001"],
+        "auto_translate": True,
+        "last_run": None,
+        "total_auto_collected": 0
+    })
+
+def save_auto_config(config):
+    save_json(AUTO_CONFIG_FILE, config)
+
 
 def get_local_ip():
     try:
@@ -75,6 +92,81 @@ def load_queues():
 
 def save_queues(queues):
     save_json(QUEUES_FILE, queues)
+
+def auto_scraper_loop():
+    while True:
+        try:
+            config = load_auto_config()
+            if config.get("enabled"):
+                last_run_str = config.get("last_run")
+                interval_sec = int(config.get("interval_minutes", 60)) * 60
+                
+                should_run = False
+                if not last_run_str:
+                    should_run = True
+                else:
+                    try:
+                        last_run_dt = datetime.strptime(last_run_str, '%Y-%m-%d %H:%M:%S')
+                        if (datetime.now() - last_run_dt).total_seconds() >= interval_sec:
+                            should_run = True
+                    except Exception:
+                        should_run = True
+                        
+                if should_run:
+                    print("[AutoScraper] Starting periodic background auto-sourcing...")
+                    categories = config.get("categories", ["10000010001"])
+                    collected_count = 0
+                    
+                    for cat_id in categories:
+                        prods = scrape_oy_category(cat_id, page_count=1)
+                        if prods:
+                            queues = load_queues()
+                            src_q = queues.get("sourcing_queue", {})
+                            list_q = queues.get("listing_queue", {})
+                            
+                            for p in prods[:24]:
+                                gno = p['goods_no']
+                                if gno not in src_q and gno not in list_q:
+                                    detail = fetch_oy_detail(gno)
+                                    if detail:
+                                        p.update(detail)
+                                    src_q[gno] = p
+                                    collected_count += 1
+                                    
+                                    if config.get("auto_translate"):
+                                        try:
+                                            translated = translate_and_optimize(
+                                                p['name'],
+                                                p.get('description', ''),
+                                                p.get('ingredients', ''),
+                                                brand=p.get('brand', '')
+                                            )
+                                            p['english_title'] = translated.get('english_title', p['name'])
+                                            p['english_description'] = translated.get('english_description', '')
+                                            p['search_tags'] = translated.get('search_tags', '')
+                                        except Exception:
+                                            p['english_title'] = p['name']
+                                            
+                                        pricing = calculate_target_price(p['sale_price'], weight_kg=0.3, markup_ratio=1.5)
+                                        p['calculated_price'] = pricing.get('final_price_target', 0)
+                                        list_q[gno] = p
+                                        
+                            queues["sourcing_queue"] = src_q
+                            queues["listing_queue"] = list_q
+                            save_queues(queues)
+                            
+                    config["last_run"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    config["total_auto_collected"] = config.get("total_auto_collected", 0) + collected_count
+                    save_auto_config(config)
+                    print(f"[AutoScraper] Finished scheduled run. Auto-collected {collected_count} new items.")
+        except Exception as e:
+            print(f"[AutoScraper] Daemon loop error: {e}")
+            
+        time.sleep(30)
+
+auto_thread = threading.Thread(target=auto_scraper_loop, daemon=True)
+auto_thread.start()
+
 
 @app.after_request
 def add_cors_headers(response):
@@ -156,7 +248,25 @@ def api_info():
         'network_url': f"http://{local_ip}:8501"
     })
 
+@app.route('/api/auto_config', methods=['GET', 'POST'])
+def api_auto_config():
+    if request.method == 'POST':
+        data = request.json or {}
+        config = load_auto_config()
+        config['enabled'] = bool(data.get('enabled', False))
+        if 'interval_minutes' in data:
+            config['interval_minutes'] = int(data['interval_minutes'])
+        if 'categories' in data:
+            config['categories'] = data['categories']
+        if 'auto_translate' in data:
+            config['auto_translate'] = bool(data['auto_translate'])
+        save_auto_config(config)
+        return jsonify({'success': True, 'config': config})
+    else:
+        return jsonify(load_auto_config())
+
 @app.route('/api/queues')
+
 def api_queues():
     return jsonify(load_queues())
 
