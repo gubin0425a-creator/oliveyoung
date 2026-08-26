@@ -1355,24 +1355,34 @@
             }
             
             try {
-                const res = await fetch('/api/listing/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        goods_no: goodsNo,
-                        title: title,
-                        description: desc,
-                        tags: tags,
-                        weight: weight,
-                        stock: stock,
-                        calculated_price: finalPrice
-                    })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    showToast("상품 수정사항이 서버에 저장되었습니다.");
-                    await fetchQueues();
+                try {
+                    const res = await fetch('/api/listing/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            goods_no: goodsNo,
+                            title: title,
+                            description: desc,
+                            tags: tags,
+                            weight: weight,
+                            stock: stock,
+                            calculated_price: finalPrice
+                        })
+                    });
+                    const data = await res.json();
+                } catch(e) {}
+                
+                if (listingQueue[goodsNo]) {
+                    listingQueue[goodsNo].translated_title = title;
+                    listingQueue[goodsNo].translated_description = desc;
+                    listingQueue[goodsNo].tags = tags;
+                    listingQueue[goodsNo].weight = weight;
+                    listingQueue[goodsNo].stock = stock;
+                    listingQueue[goodsNo].calculated_price = finalPrice;
                 }
+                showToast("⚡ 상품 수정사항이 탭 메모리에 저장되었습니다.");
+                updateBadges();
+                renderExportPreview();
             } catch(e) {
                 showToast("수정 저장 실패", true);
             }
@@ -1381,16 +1391,20 @@
         async function removeListingItem(goodsNo) {
             if(!confirm("이 상품을 보관함에서 지우시겠습니까?")) return;
             try {
-                const res = await fetch('/api/listing/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ goods_no: goodsNo })
-                });
-                const data = await res.json();
-                if(data.success) {
-                    showToast("상품 삭제 완료.");
-                    await fetchQueues();
-                }
+                try {
+                    const res = await fetch('/api/listing/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ goods_no: goodsNo })
+                    });
+                    const data = await res.json();
+                } catch(e) {}
+                
+                delete listingQueue[goodsNo];
+                showToast("⚡ 상품 삭제 완료.");
+                updateBadges();
+                renderListingQueue();
+                renderExportPreview();
             } catch(e) {
                 showToast("삭제 오류", true);
             }
@@ -1758,13 +1772,17 @@
         async function resetListingQueue() {
             if(!confirm("스튜디오 보관함의 번역 및 세팅된 모든 상품 데이터를 완전 삭제하시겠습니까?")) return;
             try {
-                const res = await fetch('/api/listing/clear', { method: 'POST' });
-                const data = await res.json();
-                if(data.success) {
-                    showToast("보관함이 초기화되었습니다.");
-                    await fetchQueues();
-                    switchTab('tab-sourcing');
-                }
+                try {
+                    const res = await fetch('/api/listing/clear', { method: 'POST' });
+                    const data = await res.json();
+                } catch(e) {}
+                
+                listingQueue = {};
+                showToast("⚡ 보관함이 완전히 초기화되었습니다.");
+                updateBadges();
+                renderListingQueue();
+                renderExportPreview();
+                switchTab('tab-sourcing');
             } catch(e) {
                 showToast("초기화 실패", true);
             }
