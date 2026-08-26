@@ -1949,6 +1949,36 @@
 
 
 
+        function getProductSpecificFallback(item) {
+            const name = ((item && item.name) || (item && item.translated_title) || '').toLowerCase();
+            if (name.includes('리들샷') || name.includes('reedle')) {
+                return 'https://images.unsplash.com/photo-1608248597263-0057e57b4524?w=500';
+            } else if (name.includes('토너') || name.includes('toner') || name.includes('어성초')) {
+                return 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=500';
+            } else if (name.includes('선크림') || name.includes('sunscreen') || name.includes('자작나무') || name.includes('조선미녀')) {
+                return 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=500';
+            } else if (name.includes('세럼') || name.includes('serum') || name.includes('히알루론산') || name.includes('비타c')) {
+                return 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=500';
+            } else if (name.includes('마스크') || name.includes('mask') || name.includes('팩')) {
+                return 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500';
+            } else if (name.includes('틴트') || name.includes('tint') || name.includes('립')) {
+                return 'https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=500';
+            } else if (name.includes('바세린') || name.includes('로션') || name.includes('lotion') || name.includes('바디')) {
+                return 'https://images.unsplash.com/photo-1617897903246-719242758050?w=500';
+            }
+            return 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500';
+        }
+
+        function getProxiedImageUrl(url, item) {
+            const fallback = getProductSpecificFallback(item);
+            if (!url) return fallback;
+            if (url.startsWith('https://images.weserv.nl')) return url;
+            
+            let cleanUrl = url;
+            if (cleanUrl.startsWith('//')) cleanUrl = 'https:' + cleanUrl;
+            return `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&default=${encodeURIComponent(fallback)}`;
+        }
+
         function renderCarouselItems(containerId, items, type) {
             const container = document.getElementById(containerId);
             if(!container) return;
@@ -1967,15 +1997,19 @@
                 const salePrice = item.sale_price || 0;
                 const discountRate = (origPrice > salePrice && origPrice > 0) ? Math.round((1 - salePrice / origPrice) * 100) : 0;
                 
+                const finalImgUrl = getProxiedImageUrl(item.image_url, item);
+                const fallbackImgUrl = getProductSpecificFallback(item);
+                
                 card.innerHTML = `
                     <div class="space-y-2">
                         <div class="relative rounded-xl overflow-hidden bg-white aspect-square flex items-center justify-center">
-                            <img src="${item.image_url || 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300';" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="">
+                            <img src="${finalImgUrl}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='${fallbackImgUrl}';" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="">
                             <span class="absolute top-2 left-2 ${type === 'ds' ? 'bg-red-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600'} text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
                                 ${type === 'ds' ? '🔴 다이소 뷰티' : (item.evidence_badge || `🥇 랭킹 #${idx+1}위`)}
                             </span>
                             ${discountRate > 0 ? `<span class="absolute top-2 right-2 bg-black/80 text-pink-400 border border-pink-500/40 text-[10px] font-black px-1.5 py-0.5 rounded">🔥 ${discountRate}%</span>` : ''}
                         </div>
+
 
                         
                         <div>
