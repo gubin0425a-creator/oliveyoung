@@ -23,9 +23,14 @@ def get_local_ip():
 from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail, scrape_category as scrape_oy_category
 from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail
 
+import base64
 from translator import translate_and_optimize
 from calculator import calculate_target_price
 from exporter import export_to_shopee_excel, export_to_shopify_csv
+from image_generator import generate_ai_product_image
+from product_recognizer import recognize_product_from_image
+
+
 
 import sys
 
@@ -328,5 +333,46 @@ def api_export_shopify():
         return send_file(shopify_file, as_attachment=True, download_name='shopify_products.csv')
     return make_response("Failed to generate template", 500)
 
+@app.route('/api/recognize_product_image', methods=['POST'])
+def api_recognize_product_image():
+    api_key = request.form.get('api_key') or (request.json or {}).get('api_key')
+    
+    try:
+        if 'image' in request.files:
+            file = request.files['image']
+            image_bytes = file.read()
+            mime_type = file.mimetype or "image/jpeg"
+        elif request.json and 'image_data' in request.json:
+            data_uri = request.json.get('image_data', '')
+            if ',' in data_uri:
+                header, base64_str = data_uri.split(',', 1)
+                mime_type = header.split(';')[0].split(':')[1]
+                image_bytes = base64.b64decode(base64_str)
+            else:
+                return jsonify({'success': False, 'msg': '올바른 이미지 형식이 아닙니다.'})
+        else:
+            return jsonify({'success': False, 'msg': '업로드할 이미지 파일이 업습니다.'})
+                
+        result = recognize_product_from_image(image_bytes, mime_type=mime_type, api_key=api_key)
+        return jsonify({'success': True, 'data': result})
+    except Exception as e:
+        return jsonify({'success': False, 'msg': str(e)})
+
+@app.route('/api/generate_image', methods=['POST'])
+def api_generate_image():
+    data = request.json or {}
+    brand = data.get('brand', '')
+    name = data.get('name', '')
+    visual_description = data.get('visual_description', '')
+    style = data.get('style', 'studio')
+    api_key = data.get('api_key', '')
+    
+    try:
+        image_url = generate_ai_product_image(brand, name, visual_description=visual_description, style=style, api_key=api_key)
+        return jsonify({'success': True, 'image_url': image_url})
+    except Exception as e:
+        return jsonify({'success': False, 'msg': str(e)})
+
 if __name__ == '__main__':
+
     app.run(host='0.0.0.0', port=8501, debug=True)
