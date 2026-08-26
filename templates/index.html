@@ -911,6 +911,8 @@
         }
 
         // Search Action
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
         async function searchProducts() {
             const query = document.getElementById('searchQuery').value.trim();
             if(!query) {
@@ -922,7 +924,19 @@
             const originalHtml = btn ? btn.innerHTML : '';
             if(btn) {
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 상품 정보를 수집 중입니다...';
+                btn.classList.add('bg-blue-700', 'animate-pulse');
+                
+                // Pipeline Step 1
+                btn.innerHTML = '<i class="fa-solid fa-satellite-dish fa-spin"></i> 1. 정보 대량 검색 중... (약 2분 소요)';
+                await sleep(1500);
+                
+                // Pipeline Step 2
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> 2. AI 이미지 새로 생성 중... (약 10분 소요)';
+                await sleep(1500);
+                
+                // Pipeline Step 3
+                btn.innerHTML = '<i class="fa-solid fa-microchip fa-spin"></i> 3. 제품 정보 AI 분석 및 기입 중...';
+                await sleep(1500);
             }
             
             const cookies = document.getElementById('oyCookies').value.trim();
@@ -987,6 +1001,7 @@
                 if(btn) {
                     btn.disabled = false;
                     btn.innerHTML = originalHtml;
+                    btn.classList.remove('bg-blue-700', 'animate-pulse');
                 }
             }
         }
@@ -2189,6 +2204,13 @@
             
             let cleanUrl = url;
             if (cleanUrl.startsWith('//')) cleanUrl = 'https:' + cleanUrl;
+            
+            // Do not proxy official brand domains that block weserv
+            const safeDomains = ['vtcosmetics.com', 'anua.kr', 'imweb.me', 'beautyofjoseon.com', 'numbuzin.com', 'roundlab.co.kr', 'mediheal.com', 'clubclio.co.kr', 'daisomall.co.kr'];
+            if (safeDomains.some(domain => cleanUrl.includes(domain))) {
+                return cleanUrl;
+            }
+            
             return `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&default=${encodeURIComponent(fallback)}`;
         }
 
