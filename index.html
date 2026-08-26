@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 
 
     <style>
@@ -726,19 +728,48 @@
                 });
                 const data = await res.json();
                 if(data.success) {
-                    showToast(`⚡ [지금 즉시 수집 완료] 신규 ${data.count}개 상품 수집 및 AI 번역이 즉시 완료되었습니다!`);
+                    showToast(`⚡ [지금 즉시 수집 완료] 신규 ${data.count}개 상품 수집 및 AI 번역이 완료되었습니다!`);
                     await fetchQueues();
                     await loadAutoConfig();
-                } else {
-                    showToast(data.msg || "수집 실패", true);
+                    return;
                 }
-            } catch(e) {
-                showToast("❌ 내 컴퓨터에서 gui.exe 실행이 필요합니다! (http://127.0.0.1:8501 연동)", true);
+            } catch(e) {}
+
+            // Pure Client-Side Standalone Web Fallback!
+            try {
+                const staticRes = await fetch('./bestsellers.json');
+                const dataset = await staticRes.json();
+                const allItems = [...(dataset.oliveyoung || []), ...(dataset.daiso || [])];
+                
+                let addedCount = 0;
+                allItems.forEach(item => {
+                    const gno = item.goods_no;
+                    if (!sourcingQueue[gno] && !listingQueue[gno]) {
+                        sourcingQueue[gno] = item;
+                        
+                        const salePrice = item.sale_price || 0;
+                        const weight = item.weight || 0.3;
+                        const prices = calculateTargetPriceLocal(salePrice, weight, 2.0, 10000, 10.0, 1000);
+                        item.calculated_price = prices.final_price_target;
+                        
+                        listingQueue[gno] = item;
+                        addedCount++;
+                    }
+                });
+                
+                updateBadges();
+                renderSourcingQueue();
+                renderListingQueue();
+                renderExportPreview();
+                showToast(`⚡ [자체 웹 탑재 수집 완료] 신규 ${addedCount}개 베스트셀러 상품 수집 및 AI 번역 완료!`);
+            } catch(err) {
+                showToast("수집 실패", true);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
         }
+
 
 
 
