@@ -81,14 +81,17 @@ def export_to_shopee_excel(products: list, filepath: str) -> bool:
                 if row_idx in [1, 2]:
                     cell.font = Font(name="Arial", size=10, bold=True, color="FFFFFF")
                     cell.fill = PatternFill(start_color="EE4D2D", end_color="EE4D2D", fill_type="solid") # Shopee orange
-                    if col_idx == 1:
-                        ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers_technical))
                 elif row_idx in [3, 4]:
                     cell.font = Font(name="Arial", size=10, bold=True, color="333333")
                     cell.fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                 else:
                     cell.font = Font(name="Arial", size=10)
+                    
+        # Merge header cells after writing values
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers_technical))
+        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers_technical))
+
                     
         # Apply borders and auto column width
         for col in ws.columns:
