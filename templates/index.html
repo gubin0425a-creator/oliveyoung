@@ -1063,31 +1063,51 @@
             const ua = document.getElementById('oyUa').value.trim();
             
             try {
-                const res = await fetch(await getBackendUrl('/api/sourcing/add'), {
+                // Try backend first for heavy scraping if gui.exe is online
+                try {
+                    const res = await fetch(await getBackendUrl('/api/sourcing/add'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            products: selected,
+                            cookies: cookies,
+                            ua: ua
+                        })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if(data.success) {
+                            showToast("대기열 추가 및 상세 정보 파싱이 완료되었습니다.");
+                            document.getElementById('searchResultsSection').classList.add('hidden');
+                            document.getElementById('searchQuery').value = '';
+                            await fetchQueues();
+                            switchTab('tab-translation');
+                            return;
+                        }
+                    }
+                } catch(backendErr) {}
 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        products: selected,
-                        cookies: cookies,
-                        ua: ua
-                    })
+                // Pure Client-side Standalone Fallback
+                selected.forEach(item => {
+                    const gno = item.goods_no || Date.now().toString() + Math.random().toString();
+                    if(!item.goods_no) item.goods_no = gno;
+                    sourcingQueue[gno] = item;
                 });
-                const data = await res.json();
-                if(data.success) {
-                    showToast("대기열 추가 및 상세 정보 파싱이 완료되었습니다.");
-                    document.getElementById('searchResultsSection').classList.add('hidden');
-                    document.getElementById('searchQuery').value = '';
-                    await fetchQueues();
-                    switchTab('tab-translation');
-                } else {
-                    showToast("수집 정보를 담는 과정에서 실패했습니다.", true);
-                }
+                
+                showToast("⚡ [웹 단독] 선택한 상품이 대기열에 추가되었습니다!");
+                document.getElementById('searchResultsSection').classList.add('hidden');
+                document.getElementById('searchQuery').value = '';
+                updateBadges();
+                renderSourcingQueue();
+                switchTab('tab-translation');
+
             } catch(e) {
                 showToast("상세 수집 통신 중 오류가 발생했습니다.", true);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-plus"></i> 선택한 상품 AI 번역 대기열(Sourcing Queue)에 추가';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-plus"></i> 선택한 상품 AI 번역 대기열(Sourcing Queue)에 추가';
+                }
             }
         }
 
