@@ -41,7 +41,7 @@
 
     <!-- QR Code Modal -->
     <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
-        <div class="bg-[#141518] border border-[#26282d] p-8 rounded-3xl max-w-sm w-full text-center space-y-6 relative shadow-2xl">
+        <div class="bg-[#141518] border border-[#26282d] p-8 rounded-3xl max-w-sm w-full text-center space-y-5 relative shadow-2xl">
             <button type="button" onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white p-2">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
@@ -51,18 +51,31 @@
             </div>
             
             <div>
-                <h3 class="text-xl font-bold text-white">모바일 기기 연결 QR 코드</h3>
-                <p class="text-xs text-gray-400 mt-1">스마트폰 카메라로 스캔하면 주소 입력 없이 모바일 기기에서 즉시 연결됩니다.</p>
+                <h3 class="text-xl font-bold text-white">스마트폰 연결 QR 코드</h3>
+                <p class="text-xs text-gray-400 mt-1">카메라로 비추면 바로 깃허브 웹 앱으로 연결됩니다.</p>
+            </div>
+
+            <!-- Mode Selector Tabs -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-bold bg-[#0a0a0c] p-1 rounded-xl border border-[#22242a]">
+                <button type="button" onclick="setQrType('github')" id="qrBtnGithub" class="py-1.5 rounded-lg bg-blue-600 text-white transition">🌐 깃허브 웹 (권장)</button>
+                <button type="button" onclick="setQrType('local')" id="qrBtnLocal" class="py-1.5 rounded-lg text-gray-400 hover:text-white transition">🏠 로컬 LAN IP</button>
             </div>
             
             <div class="flex justify-center p-4 bg-white rounded-2xl w-fit mx-auto shadow-inner" id="qrcodeContainer"></div>
             
-            <div class="bg-[#0a0a0c] border border-[#22242a] p-3 rounded-xl text-xs space-y-1">
-                <p class="text-gray-400">마스터 패스코드: <span class="text-pink-400 font-mono font-bold">635835</span></p>
-                <p id="qrUrlText" class="text-gray-500 font-mono text-[10px] truncate"></p>
+            <div class="bg-[#0a0a0c] border border-[#22242a] p-3 rounded-xl text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">보안 패스코드: <strong class="text-pink-400 font-mono text-sm">635835</strong></span>
+                    <button type="button" onclick="navigator.clipboard.writeText('635835'); showToast('암호 635835가 복사되었습니다!');" class="text-[10px] bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded hover:bg-pink-500/30 transition">암호 복사</button>
+                </div>
+                <div class="flex items-center justify-between border-t border-[#1e2025] pt-2">
+                    <span id="qrUrlText" class="text-gray-400 font-mono text-[10px] truncate max-w-[200px]">https://gubin0425a-creator.github.io/oliveyoung/</span>
+                    <button type="button" onclick="copyCurrentQrUrl()" class="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded hover:bg-blue-500/30 transition">주소 복사</button>
+                </div>
             </div>
         </div>
     </div>
+
 
     <!-- Barcode Scanner Modal -->
     <div id="barcodeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
@@ -1360,42 +1373,64 @@
         }
 
         let qrCodeInstance = null;
+        let activeQrUrl = "https://gubin0425a-creator.github.io/oliveyoung/";
+        let localIpUrl = "";
 
         async function showQrModal() {
             const modal = document.getElementById('qrModal');
-            const container = document.getElementById('qrcodeContainer');
-            const urlText = document.getElementById('qrUrlText');
             
-            container.innerHTML = '';
-            
-            let targetUrl = window.location.origin;
-            
-            // Fetch local network IP from backend if available
             try {
-                const res = await fetch('/api/info');
+                const res = await fetch(await getBackendUrl('/api/info'));
                 const info = await res.json();
-                if(info.network_url && !window.location.hostname.includes('huggingface')) {
-                    targetUrl = info.network_url;
+                if(info.network_url) {
+                    localIpUrl = info.network_url;
                 }
             } catch(e) {}
             
-            urlText.innerText = targetUrl;
+            await setQrType('github');
+            modal.classList.remove('hidden');
+        }
+
+        async function setQrType(type) {
+            const container = document.getElementById('qrcodeContainer');
+            const urlText = document.getElementById('qrUrlText');
+            const btnGithub = document.getElementById('qrBtnGithub');
+            const btnLocal = document.getElementById('qrBtnLocal');
+            if(!container || !urlText) return;
+            
+            container.innerHTML = '';
+            
+            if(type === 'github') {
+                activeQrUrl = "https://gubin0425a-creator.github.io/oliveyoung/";
+                if(btnGithub) btnGithub.className = "py-1.5 rounded-lg bg-blue-600 text-white font-bold transition shadow";
+                if(btnLocal) btnLocal.className = "py-1.5 rounded-lg text-gray-400 hover:text-white transition";
+            } else {
+                activeQrUrl = localIpUrl || "http://127.0.0.1:8501";
+                if(btnLocal) btnLocal.className = "py-1.5 rounded-lg bg-emerald-600 text-white font-bold transition shadow";
+                if(btnGithub) btnGithub.className = "py-1.5 rounded-lg text-gray-400 hover:text-white transition";
+            }
+            
+            urlText.innerText = activeQrUrl;
             
             qrCodeInstance = new QRCode(container, {
-                text: targetUrl,
+                text: activeQrUrl,
                 width: 180,
                 height: 180,
                 colorDark : "#000000",
                 colorLight : "#ffffff",
                 correctLevel : QRCode.CorrectLevel.H
             });
-            
-            modal.classList.remove('hidden');
+        }
+
+        function copyCurrentQrUrl() {
+            navigator.clipboard.writeText(activeQrUrl);
+            showToast(`접속 주소가 복사되었습니다! (${activeQrUrl})`);
         }
 
         function closeQrModal() {
             document.getElementById('qrModal').classList.add('hidden');
         }
+
 
         // Category Selector JS
         let currentSearchMode = 'keyword';
