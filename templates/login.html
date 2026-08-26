@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K-Beauty Global Lister - Access</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-[#0a0a0c] flex items-center justify-center min-h-screen text-white p-4 relative overflow-hidden">
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-pink-600/20 rounded-full blur-3xl pointer-events-none"></div>
+    
+    <div class="bg-[#141518]/90 backdrop-blur-xl p-8 md:p-10 rounded-3xl shadow-2xl border border-[#26282d] w-full max-w-md text-center relative z-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-pink-500 mb-6 shadow-lg shadow-blue-500/20">
+            <i class="fa-solid fa-wand-magic-sparkles text-2xl text-white"></i>
+        </div>
+        
+        <h1 class="text-3xl font-extrabold mb-2 bg-gradient-to-r from-blue-400 via-indigo-300 to-pink-400 bg-clip-text text-transparent">K-Beauty Lister Pro</h1>
+        <p class="text-xs text-gray-400 mb-8 font-medium tracking-wide">올인원 다이소 & 올리브영 화장품 수집·번역·마진 자동화 스튜디오</p>
+        
+        <form id="loginForm" onsubmit="auth(event)" class="space-y-4">
+            <div class="text-left">
+                <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">디바이스 별칭</label>
+                <input type="text" id="devName" placeholder="예: 작업용 PC, 맥북 프로" class="w-full bg-[#0e0f10] text-white px-4 py-3 border border-[#2a2b2e] rounded-xl text-sm focus:border-blue-500 outline-none transition">
+            </div>
+            
+            <div class="text-left">
+                <label class="block text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">마스터 패스코드</label>
+                <input type="password" id="pwd" placeholder="••••••" maxlength="6" class="w-full bg-[#0e0f10] text-white px-4 py-4 border border-[#2a2b2e] rounded-xl text-center text-2xl tracking-[0.6em] focus:border-pink-500 outline-none transition font-mono">
+            </div>
+            
+            <button type="submit" id="btn" class="w-full bg-gradient-to-r from-blue-600 to-pink-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-pink-500/25 hover:opacity-95 transition flex items-center justify-center gap-2 mt-4">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i> Connect Workspace
+            </button>
+            
+            <p id="msg" class="text-pink-400 text-xs font-bold min-h-[20px]"></p>
+        </form>
+        
+        <div class="mt-6 pt-6 border-t border-[#222] flex justify-between text-xs text-gray-500">
+            <span><i class="fa-solid fa-shield-halved mr-1"></i> Device Limit: 9</span>
+            <span>v2.5 Pro All-in-One</span>
+        </div>
+    </div>
+    
+    <script>
+        async function auth(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn');
+            const msg = document.getElementById('msg');
+            const pwd = document.getElementById('pwd').value.trim();
+            const dev = document.getElementById('devName').value.trim();
+            
+            if(!pwd) {
+                msg.innerText = "마스터 암호를 입력해주세요.";
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+            
+            const fd = new FormData();
+            fd.append('password', pwd);
+            fd.append('device_name', dev || 'Member Device');
+            
+            try {
+                const res = await fetch('/api/auth', {method:'POST', body:fd});
+                const data = await res.json();
+                if(data.success) {
+                    msg.className = "text-blue-400 text-xs font-bold";
+                    msg.innerText = "인증 완료! 스튜디오로 이동합니다...";
+                    setTimeout(() => { window.location.href = '/'; }, 400);
+                } else {
+                    msg.className = "text-pink-400 text-xs font-bold";
+                    msg.innerText = data.msg || "접근이 거부되었습니다.";
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Connect Workspace';
+                }
+            } catch(err) {
+                msg.innerText = "서버 연결 오류가 발생했습니다.";
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Connect Workspace';
+            }
+        }
+    </script>
+</body>
+</html>
