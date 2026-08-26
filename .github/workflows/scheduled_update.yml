@@ -1,0 +1,50 @@
+name: 24/7 Scheduled Auto-Update (9 AM & 5 PM KST)
+
+on:
+  schedule:
+    # 00:00 UTC = 09:00 AM KST (오전 9시)
+    # 08:00 UTC = 17:00 PM KST (오후 5시)
+    - cron: '0 0,8 * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Scheduled Sourcing & Translation Engine
+        run: |
+          python -c "
+          from scraper.oliveyoung import get_best_sellers
+          from app import load_queues, save_queues
+          print('Running Scheduled Auto-Update (9 AM / 5 PM KST)...')
+          bests = get_best_sellers()
+          if bests:
+              queues = load_queues()
+              src = queues.get('sourcing_queue', {})
+              for item in bests[:20]:
+                  src[item['goods_no']] = item
+              queues['sourcing_queue'] = src
+              save_queues(queues)
+              print(f'Successfully updated {len(bests)} items.')
+          "
+
+      - name: Commit & Push Updated Data to GitHub
+        run: |
+          git config --global user.name "Auto-Lister-Bot"
+          git config --global user.email "bot@antigravity.ai"
+          git add queues.json
+          git diff-index --quiet HEAD || git commit -m "auto: Daily scheduled update (9 AM / 5 PM KST)"
+          git push origin main

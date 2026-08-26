@@ -14,13 +14,15 @@ AUTO_CONFIG_FILE = os.path.join(DATA_DIR, 'auto_config.json')
 
 def load_auto_config():
     return load_json(AUTO_CONFIG_FILE, {
-        "enabled": False,
+        "enabled": True,
+        "schedule_times": ["09:00", "17:00"],
         "interval_minutes": 60,
         "categories": ["10000010001"],
         "auto_translate": True,
         "last_run": None,
         "total_auto_collected": 0
     })
+
 
 def save_auto_config(config):
     save_json(AUTO_CONFIG_FILE, config)
@@ -100,10 +102,14 @@ def auto_scraper_loop():
             config = load_auto_config()
             if config.get("enabled"):
                 last_run_str = config.get("last_run")
-                interval_sec = int(config.get("interval_minutes", 60)) * 60
+                now_hm = datetime.now().strftime('%H:%M')
+                scheduled_times = config.get("schedule_times", ["09:00", "17:00"])
                 
                 should_run = False
-                if not last_run_str:
+                if now_hm in scheduled_times and config.get("last_run_hm") != now_hm:
+                    should_run = True
+                    config["last_run_hm"] = now_hm
+                elif not last_run_str:
                     should_run = True
                 else:
                     try:
@@ -114,6 +120,7 @@ def auto_scraper_loop():
                         should_run = True
                         
                 if should_run:
+
                     print("[AutoScraper] Starting periodic background auto-sourcing...")
                     categories = config.get("categories", ["10000010001"])
                     collected_count = 0
