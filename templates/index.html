@@ -719,7 +719,8 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 지금 즉시 수집/조사 및 AI 번역 중...';
             
             try {
-                const res = await fetch(await getBackendUrl('/api/auto_config/run_now'), {
+                const targetUrl = await getBackendUrl('/api/auto_config/run_now');
+                const res = await fetch(targetUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -732,12 +733,13 @@
                     showToast(data.msg || "수집 실패", true);
                 }
             } catch(e) {
-                showToast("수집 중 통신 오류 발생", true);
+                showToast("❌ 내 컴퓨터에서 gui.exe 실행이 필요합니다! (http://127.0.0.1:8501 연동)", true);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
         }
+
 
 
         // Tab Switcher
@@ -818,11 +820,11 @@
         let cachedBackendOrigin = null;
 
         async function getBackendUrl(path) {
-            if (cachedBackendOrigin !== null) {
-                return cachedBackendOrigin + path;
-            }
-            
             if (window.location.hostname.includes('github.io') || window.location.protocol === 'file:') {
+                if (cachedBackendOrigin) {
+                    return cachedBackendOrigin + path;
+                }
+                
                 try {
                     const test = await fetch('http://127.0.0.1:8501/api/info', { mode: 'cors' });
                     if (test.ok) {
@@ -830,11 +832,21 @@
                         return cachedBackendOrigin + path;
                     }
                 } catch(e) {}
+
+                try {
+                    const testLocal = await fetch('http://localhost:8501/api/info', { mode: 'cors' });
+                    if (testLocal.ok) {
+                        cachedBackendOrigin = 'http://localhost:8501';
+                        return cachedBackendOrigin + path;
+                    }
+                } catch(e) {}
+                
+                return 'http://127.0.0.1:8501' + path;
             }
             
-            cachedBackendOrigin = '';
             return path;
         }
+
 
         // Fetch Queue from Backend
         async function fetchQueues() {

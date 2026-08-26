@@ -185,6 +185,15 @@ def add_cors_headers(response):
 
 @app.before_request
 def check_auth():
+    if request.method == 'OPTIONS':
+        res = make_response('', 200)
+        res.headers['Access-Control-Allow-Origin'] = '*'
+        res.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        res.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        return res
+
+    if request.path.startswith('/api/'):
+        return
 
     if request.path in ['/login', '/api/auth']:
         return
@@ -197,6 +206,7 @@ def check_auth():
         return redirect('/login')
     device['last_used'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     save_json(DEVICES_FILE, devices)
+
 
 @app.route('/login')
 def login_page():
