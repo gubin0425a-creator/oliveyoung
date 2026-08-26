@@ -6,6 +6,8 @@
     <title>K-Beauty Global Lister - All-in-One Master Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
         body { font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
@@ -34,6 +36,32 @@
         <i id="toastIcon" class="fa-solid fa-circle-check text-blue-400"></i>
         <span id="toastMsg">성공적으로 반영되었습니다!</span>
     </div>
+
+    <!-- QR Code Modal -->
+    <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="bg-[#141518] border border-[#26282d] p-8 rounded-3xl max-w-sm w-full text-center space-y-6 relative shadow-2xl">
+            <button type="button" onclick="closeQrModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <i class="fa-solid fa-qrcode text-2xl"></i>
+            </div>
+            
+            <div>
+                <h3 class="text-xl font-bold text-white">모바일 기기 연결 QR 코드</h3>
+                <p class="text-xs text-gray-400 mt-1">스마트폰 카메라로 스캔하면 주소 입력 없이 모바일 기기에서 즉시 연결됩니다.</p>
+            </div>
+            
+            <div class="flex justify-center p-4 bg-white rounded-2xl w-fit mx-auto shadow-inner" id="qrcodeContainer"></div>
+            
+            <div class="bg-[#0a0a0c] border border-[#22242a] p-3 rounded-xl text-xs space-y-1">
+                <p class="text-gray-400">마스터 패스코드: <span class="text-pink-400 font-mono font-bold">635835</span></p>
+                <p id="qrUrlText" class="text-gray-500 font-mono text-[10px] truncate"></p>
+            </div>
+        </div>
+    </div>
+
 
     <!-- SIDEBAR -->
     <aside id="sidebar" class="w-72 bg-[#101114] border-r border-[#1e2025] flex flex-col justify-between hidden md:flex shrink-0 transition-all duration-300 relative">
@@ -97,10 +125,16 @@
                 <input type="password" id="geminiApiKey" oninput="saveApiKey(this.value)" placeholder="Gemini API Key 입력" class="w-full bg-[#141518] text-xs text-gray-300 px-3 py-2.5 border border-[#26282d] rounded-xl outline-none focus:border-blue-500 transition font-mono">
             </div>
 
+            <!-- QR Code Sharing Button -->
+            <button type="button" onclick="showQrModal()" class="w-full bg-[#1a1b1e] hover:bg-blue-500/10 hover:border-blue-500/40 border border-[#26282d] text-blue-400 hover:text-blue-300 text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2 logout-btn">
+                <i class="fa-solid fa-qrcode"></i> <span class="sidebar-text">기기 공유 QR 코드</span>
+            </button>
+
             <!-- Logout Button -->
             <button onclick="logout()" class="w-full bg-[#1a1b1e] hover:bg-red-500/10 hover:border-red-500/40 border border-[#26282d] text-gray-400 hover:text-red-400 text-xs py-2.5 rounded-lg transition flex items-center justify-center gap-2 logout-btn">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="sidebar-text">연결 해제 (로그아웃)</span>
             </button>
+
         </div>
     </aside>
 
@@ -1085,7 +1119,46 @@
             }
         }
 
+        let qrCodeInstance = null;
+
+        async function showQrModal() {
+            const modal = document.getElementById('qrModal');
+            const container = document.getElementById('qrcodeContainer');
+            const urlText = document.getElementById('qrUrlText');
+            
+            container.innerHTML = '';
+            
+            let targetUrl = window.location.origin;
+            
+            // Fetch local network IP from backend if available
+            try {
+                const res = await fetch('/api/info');
+                const info = await res.json();
+                if(info.network_url && !window.location.hostname.includes('huggingface')) {
+                    targetUrl = info.network_url;
+                }
+            } catch(e) {}
+            
+            urlText.innerText = targetUrl;
+            
+            qrCodeInstance = new QRCode(container, {
+                text: targetUrl,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeQrModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+        }
+
         async function logout() {
+
             if(!confirm("디바이스 연결을 해제(로그아웃)하시겠습니까?")) return;
             try {
                 const res = await fetch('/api/logout', { method: 'POST' });

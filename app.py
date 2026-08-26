@@ -5,8 +5,20 @@ import os
 import uuid
 import json
 import time
+import socket
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, make_response, redirect, send_file
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 
 from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail
 from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail
@@ -14,11 +26,22 @@ from translator import translate_and_optimize
 from calculator import calculate_target_price
 from exporter import export_to_shopee_excel, export_to_shopify_csv
 
-app = Flask(__name__)
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if getattr(sys, 'frozen', False):
+    # PyInstaller extracts resources to sys._MEIPASS
+    template_folder = os.path.join(sys._MEIPASS, 'templates')
+    app = Flask(__name__, template_folder=template_folder)
+    # Put user files in the same directory as the executable
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    app = Flask(__name__)
+
 DEVICES_FILE = os.path.join(BASE_DIR, 'devices.json')
 QUEUES_FILE = os.path.join(BASE_DIR, 'queues.json')
+
 
 def load_json(path, default=None):
     if default is None:
@@ -110,9 +133,19 @@ def index():
     current_device = next((d for d in devices if d['id'] == current_id), None)
     return render_template('index.html', device=current_device, device_count=len(devices))
 
+@app.route('/api/info')
+def api_info():
+    local_ip = get_local_ip()
+    return jsonify({
+        'local_ip': local_ip,
+        'port': 8501,
+        'network_url': f"http://{local_ip}:8501"
+    })
+
 @app.route('/api/queues')
 def api_queues():
     return jsonify(load_queues())
+
 
 @app.route('/api/search', methods=['POST'])
 def api_search():
