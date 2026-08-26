@@ -68,6 +68,20 @@ def search_products(keyword):
         print(f"Error searching Daiso Mall: {e}")
         return []
 
+def get_daiso_bestsellers():
+    """
+    Fetches Daiso Mall beauty and skincare products for Daiso's dedicated carousel.
+    """
+    prods = search_products("뷰티")
+    if len(prods) < 10:
+        prods.extend(search_products("화장품"))
+    unique = {}
+    for p in prods:
+        if p['goods_no'] not in unique:
+            unique[p['goods_no']] = p
+    return list(unique.values())[:20]
+
+
 def fetch_product_detail(goods_id):
     """
     Fetches details of a Daiso product using the goods_id (pdNo).

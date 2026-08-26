@@ -273,12 +273,19 @@ def api_auto_config():
     else:
         return jsonify(load_auto_config())
 
+from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail, get_daiso_bestsellers
+
 @app.route('/api/bestsellers', methods=['GET', 'POST'])
 def api_bestsellers():
     cookies_str = request.args.get('cookies', '') or (request.json or {}).get('cookies', '')
     ua = request.args.get('ua', '') or (request.json or {}).get('ua', '')
-    bests = get_oy_bestsellers(custom_cookies_str=cookies_str, custom_ua=ua)
-    return jsonify({'results': bests})
+    oy_bests = get_oy_bestsellers(custom_cookies_str=cookies_str, custom_ua=ua)
+    ds_bests = get_daiso_bestsellers()
+    return jsonify({
+        'oliveyoung': oy_bests,
+        'daiso': ds_bests
+    })
+
 
 @app.route('/api/queues')
 
