@@ -273,6 +273,86 @@ def api_auto_config():
     else:
         return jsonify(load_auto_config())
 
+@app.route('/api/auto_config/run_now', methods=['POST'])
+def api_auto_run_now():
+    try:
+        config = load_auto_config()
+        categories = config.get("categories", ["10000010001"])
+        collected_count = 0
+        
+        bests = get_oy_bestsellers()
+        queues = load_queues()
+        src_q = queues.get("sourcing_queue", {})
+        list_q = queues.get("listing_queue", {})
+        
+        for p in bests[:16]:
+            gno = p['goods_no']
+            if gno not in src_q and gno not in list_q:
+                detail = fetch_oy_detail(gno)
+                if detail:
+                    p.update(detail)
+                src_q[gno] = p
+                collected_count += 1
+                
+                try:
+                    translated = translate_and_optimize(
+                        p['name'],
+                        p.get('description', ''),
+                        p.get('ingredients', ''),
+                        brand=p.get('brand', '')
+                    )
+                    p['english_title'] = translated.get('english_title', p['name'])
+                    p['english_description'] = translated.get('english_description', '')
+                    p['search_tags'] = translated.get('search_tags', '')
+                except Exception:
+                    p['english_title'] = p['name']
+                    
+                pricing = calculate_target_price(p['sale_price'], weight_kg=0.3, markup_ratio=1.5)
+                p['calculated_price'] = pricing.get('final_price_target', 0)
+                list_q[gno] = p
+
+        for cat_id in categories:
+            prods = scrape_oy_category(cat_id, page_count=1)
+            if prods:
+                for p in prods[:16]:
+                    gno = p['goods_no']
+                    if gno not in src_q and gno not in list_q:
+                        detail = fetch_oy_detail(gno)
+                        if detail:
+                            p.update(detail)
+                        src_q[gno] = p
+                        collected_count += 1
+                        
+                        try:
+                            translated = translate_and_optimize(
+                                p['name'],
+                                p.get('description', ''),
+                                p.get('ingredients', ''),
+                                brand=p.get('brand', '')
+                            )
+                            p['english_title'] = translated.get('english_title', p['name'])
+                            p['english_description'] = translated.get('english_description', '')
+                            p['search_tags'] = translated.get('search_tags', '')
+                        except Exception:
+                            p['english_title'] = p['name']
+                            
+                        pricing = calculate_target_price(p['sale_price'], weight_kg=0.3, markup_ratio=1.5)
+                        p['calculated_price'] = pricing.get('final_price_target', 0)
+                        list_q[gno] = p
+                        
+        queues["sourcing_queue"] = src_q
+        queues["listing_queue"] = list_q
+        save_queues(queues)
+        
+        config["last_run"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        config["total_auto_collected"] = config.get("total_auto_collected", 0) + collected_count
+        save_auto_config(config)
+        
+        return jsonify({'success': True, 'count': collected_count, 'message': f'신규 {collected_count}개 상품 즉시 수집 및 AI 번역 완료'})
+    except Exception as e:
+        return jsonify({'success': False, 'msg': str(e)})
+
+
 from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail, get_daiso_bestsellers
 
 @app.route('/api/bestsellers', methods=['GET', 'POST'])

@@ -286,6 +286,13 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Run Sourcing Right Now Instant Button -->
+                    <button type="button" onclick="runAutoSourcingNow()" id="btnRunNow" class="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white text-xs font-extrabold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 border border-blue-400/30">
+                        <i class="fa-solid fa-bolt text-yellow-300 animate-pulse text-sm"></i> ⚡ 지금 즉시 수집/조사 및 AI 번역 즉시 실행 (Run Sourcing Right Now)
+                    </button>
+                </div>
+
                 </div>
 
                 <!-- Category Quick Chips Bar -->
@@ -636,6 +643,102 @@
         let sourcingQueue = {};
         let listingQueue = {};
         let searchResults = [];
+
+        // AI Auto-Pilot JS Controllers
+        async function loadAutoConfig() {
+            try {
+                const res = await fetch(await getBackendUrl('/api/auto_config'));
+                const config = await res.json();
+                
+                const toggle = document.getElementById('autoScrapeToggle');
+                const badge = document.getElementById('autoStatusBadge');
+                const toggleText = document.getElementById('autoToggleText');
+                
+                if(toggle) toggle.checked = config.enabled !== false;
+                if(config.enabled !== false) {
+                    if(badge) {
+                        badge.className = "text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse";
+                        badge.innerText = "🟢 가동 중 (ON)";
+                    }
+                    if(toggleText) toggleText.innerText = "ON";
+                } else {
+                    if(badge) {
+                        badge.className = "text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-gray-700 text-gray-400 border border-gray-600";
+                        badge.innerText = "비활성화 (OFF)";
+                    }
+                    if(toggleText) toggleText.innerText = "OFF";
+                }
+                
+                const autoIntervalEl = document.getElementById('autoInterval');
+                const autoTotalEl = document.getElementById('autoTotalCount');
+                const autoLastRunEl = document.getElementById('autoLastRun');
+                
+                if(autoIntervalEl) autoIntervalEl.value = config.interval_minutes || 60;
+                if(autoTotalEl) autoTotalEl.innerText = config.total_auto_collected || 0;
+                if(autoLastRunEl) autoLastRunEl.innerText = config.last_run ? `최근: ${config.last_run.split(' ')[1]}` : '최근: 없음';
+            } catch(e) {}
+        }
+
+        async function toggleAutoScraper() {
+            const isChecked = document.getElementById('autoScrapeToggle').checked;
+            await saveAutoSettings(isChecked);
+        }
+
+        async function saveAutoSettings(forceEnabled = null) {
+            const toggle = document.getElementById('autoScrapeToggle');
+            const enabled = forceEnabled !== null ? forceEnabled : toggle.checked;
+            const interval = parseInt(document.getElementById('autoInterval').value) || 60;
+            const category = document.getElementById('autoTargetCategory').value;
+            
+            try {
+                const res = await fetch(await getBackendUrl('/api/auto_config'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        enabled: enabled,
+                        interval_minutes: interval,
+                        categories: [category],
+                        auto_translate: true
+                    })
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast(enabled ? "🤖 24/7 AI 자동 수집 오토파일럿이 활성화되었습니다!" : "자동 수집이 비활성화되었습니다.");
+                    await loadAutoConfig();
+                }
+            } catch(e) {
+                showToast("설정 저장 실패", true);
+            }
+        }
+
+        async function runAutoSourcingNow() {
+            const btn = document.getElementById('btnRunNow');
+            if(!btn) return;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 지금 즉시 수집/조사 및 AI 번역 중...';
+            
+            try {
+                const res = await fetch(await getBackendUrl('/api/auto_config/run_now'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if(data.success) {
+                    showToast(`⚡ [지금 즉시 수집 완료] 신규 ${data.count}개 상품 수집 및 AI 번역이 즉시 완료되었습니다!`);
+                    await fetchQueues();
+                    await loadAutoConfig();
+                } else {
+                    showToast(data.msg || "수집 실패", true);
+                }
+            } catch(e) {
+                showToast("수집 중 통신 오류 발생", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
 
         // Tab Switcher
         function switchTab(tabId) {
@@ -1734,7 +1837,9 @@
             loadApiKey();
             fetchQueues();
             loadBestSellerTiles();
+            loadAutoConfig();
         });
+
     </script>
 </body>
 
