@@ -741,7 +741,7 @@
 
             // Pure Client-Side Standalone Web Fallback!
             try {
-                const staticRes = await fetch('./bestsellers.json');
+                const staticRes = await fetch('./bestsellers.json?t=' + new Date().getTime());
                 const dataset = await staticRes.json();
                 const allItems = [...(dataset.oliveyoung || []), ...(dataset.daiso || [])];
                 
@@ -959,7 +959,7 @@
                 try {
                     dataset = await fetchRealLiveProducts();
                 } catch(e) {
-                    const staticRes = await fetch('./bestsellers.json');
+                    const staticRes = await fetch('./bestsellers.json?t=' + new Date().getTime());
                     dataset = await staticRes.json();
                 }
 
@@ -1567,7 +1567,7 @@
             let exportItems = Object.values(listingQueue);
             if (exportItems.length === 0) {
                 try {
-                    const staticRes = await fetch('./bestsellers.json');
+                    const staticRes = await fetch('./bestsellers.json?t=' + new Date().getTime());
                     const dataset = await staticRes.json();
                     const allItems = [...(dataset.oliveyoung || []), ...(dataset.daiso || [])];
                     allItems.forEach(item => {
@@ -1673,7 +1673,7 @@
             let exportItems = Object.values(listingQueue);
             if (exportItems.length === 0) {
                 try {
-                    const staticRes = await fetch('./bestsellers.json');
+                    const staticRes = await fetch('./bestsellers.json?t=' + new Date().getTime());
                     const dataset = await staticRes.json();
                     const allItems = [...(dataset.oliveyoung || []), ...(dataset.daiso || [])];
                     allItems.forEach(item => {
@@ -2134,7 +2134,7 @@
             } catch(e) {}
 
             // Fallback dataset
-            const staticRes = await fetch('./bestsellers.json');
+            const staticRes = await fetch('./bestsellers.json?t=' + new Date().getTime());
             return await staticRes.json();
         }
 
