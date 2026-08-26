@@ -1744,15 +1744,24 @@
             dsEl.innerHTML = '<div class="py-8 text-xs text-gray-400 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> 다이소몰 뷰티 인기 상품 가로 슬라이더 데이터 불러오는 중...</div>';
             
             try {
-                const cookies = document.getElementById('oyCookies').value.trim();
-                const ua = document.getElementById('oyUa').value.trim();
+                let data = null;
+                try {
+                    const cookies = document.getElementById('oyCookies').value.trim();
+                    const ua = document.getElementById('oyUa').value.trim();
+                    const res = await fetch(await getBackendUrl('/api/bestsellers'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cookies: cookies, ua: ua })
+                    });
+                    if (res.ok) {
+                        data = await res.json();
+                    }
+                } catch(e) {}
                 
-                const res = await fetch(await getBackendUrl('/api/bestsellers'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cookies: cookies, ua: ua })
-                });
-                const data = await res.json();
+                if (!data || (!data.oliveyoung && !data.daiso)) {
+                    const staticRes = await fetch('./bestsellers.json');
+                    data = await staticRes.json();
+                }
                 
                 oyBestItems = data.oliveyoung || [];
                 dsBestItems = data.daiso || [];
@@ -1760,10 +1769,11 @@
                 renderCarouselItems('oyCarousel', oyBestItems, 'oy');
                 renderCarouselItems('dsCarousel', dsBestItems, 'ds');
             } catch(e) {
-                if(oyEl) oyEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 오류</div>';
-                if(dsEl) dsEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 오류</div>';
+                if(oyEl) oyEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 로딩 오류</div>';
+                if(dsEl) dsEl.innerHTML = '<div class="py-4 text-xs text-red-400">데이터 로딩 오류</div>';
             }
         }
+
 
         function renderCarouselItems(containerId, items, type) {
             const container = document.getElementById(containerId);
