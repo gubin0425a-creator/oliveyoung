@@ -1,13 +1,9 @@
 .venv/
+.gemini/
 __pycache__/
 *.pyc
-*.db
-*.db-shm
-*.db-wal
-.gemini/
+build/
 queues.json
 devices.json
-shopee_mass_upload.xlsx
-shopify_products.csv
-.idea/
-.vscode/
+*.xlsx
+*.csv
