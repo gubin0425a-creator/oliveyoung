@@ -20,8 +20,9 @@ def get_local_ip():
         return "127.0.0.1"
 
 
-from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail
+from scraper.oliveyoung import search_products as search_oy, fetch_product_detail as fetch_oy_detail, scrape_category as scrape_oy_category
 from scraper.daiso import search_products as search_ds, fetch_product_detail as fetch_ds_detail
+
 from translator import translate_and_optimize
 from calculator import calculate_target_price
 from exporter import export_to_shopee_excel, export_to_shopify_csv
@@ -154,14 +155,24 @@ def api_search():
     channel = data.get('channel', 'all')
     cookies_str = data.get('cookies', '')
     ua = data.get('ua', '')
+    mode = data.get('mode', 'keyword')
+    pages = int(data.get('pages', 1))
     
     results = []
-    if channel in ['oy', 'all']:
-        results.extend(search_oy(query, custom_cookies_str=cookies_str, custom_ua=ua))
-    if channel in ['ds', 'all']:
-        results.extend(search_ds(query))
-        
+    
+    # Check if category mode or category URL
+    is_cat = (mode == 'category') or ('dispCatNo=' in query) or (query.isdigit() and len(query) >= 8)
+    
+    if is_cat and channel in ['oy', 'all']:
+        results.extend(scrape_oy_category(query, page_count=pages, custom_cookies_str=cookies_str, custom_ua=ua))
+    else:
+        if channel in ['oy', 'all']:
+            results.extend(search_oy(query, custom_cookies_str=cookies_str, custom_ua=ua))
+        if channel in ['ds', 'all']:
+            results.extend(search_ds(query))
+            
     return jsonify({'results': results})
+
 
 @app.route('/api/sourcing/add', methods=['POST'])
 def api_sourcing_add():

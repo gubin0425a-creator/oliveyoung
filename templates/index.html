@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
 
     <style>
         @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
@@ -61,6 +63,49 @@
             </div>
         </div>
     </div>
+
+    <!-- Barcode Scanner Modal -->
+    <div id="barcodeModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden">
+        <div class="bg-[#141518] border border-[#26282d] p-6 md:p-8 rounded-3xl max-w-md w-full space-y-6 relative shadow-2xl text-center">
+            <button type="button" onclick="closeBarcodeModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white p-2">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <i class="fa-solid fa-barcode text-2xl"></i>
+            </div>
+            
+            <div>
+                <h3 class="text-xl font-bold text-white">화장품 바코드 스캔</h3>
+                <p class="text-xs text-gray-400 mt-1">제품 바코드(880...) 사진을 업로드하거나 실시간 카메라로 스캔하세요.</p>
+            </div>
+            
+            <!-- Mode Switcher -->
+            <div class="grid grid-cols-2 gap-2 bg-[#0a0a0c] p-1 rounded-xl text-xs font-bold">
+                <button type="button" id="tab-bc-file" onclick="switchBarcodeMode('file')" class="py-2.5 rounded-lg bg-[#1e2025] text-white">📷 사진 파일 업로드</button>
+                <button type="button" id="tab-bc-cam" onclick="switchBarcodeMode('cam')" class="py-2.5 rounded-lg text-gray-400">📹 카메라 실시간 스캔</button>
+            </div>
+            
+            <!-- File Mode -->
+            <div id="bcFileSection" class="space-y-4">
+                <div class="border-2 border-dashed border-[#26282d] hover:border-blue-500/50 rounded-2xl p-6 text-center cursor-pointer relative" onclick="document.getElementById('barcodeFileInput').click()">
+                    <i class="fa-solid fa-file-image text-3xl text-gray-500 mb-2"></i>
+                    <p class="text-xs font-bold text-gray-300">바코드 사진 이미지 선택</p>
+                    <p class="text-[10px] text-gray-500 mt-1">PNG, JPG, JPEG 이미지 파일 지원</p>
+                    <input type="file" id="barcodeFileInput" accept="image/*" class="hidden" onchange="handleBarcodeFileSelect(event)">
+                </div>
+            </div>
+
+            <!-- Camera Mode -->
+            <div id="bcCamSection" class="hidden space-y-4">
+                <div id="interactiveScanner" class="w-full bg-[#0a0a0c] rounded-2xl overflow-hidden min-h-[200px] border border-[#26282d]"></div>
+            </div>
+
+            <!-- Detection Status -->
+            <div id="bcStatus" class="hidden text-xs text-blue-400 font-bold bg-blue-500/10 p-3 rounded-xl border border-blue-500/20"></div>
+        </div>
+    </div>
+
 
 
     <!-- SIDEBAR -->
@@ -174,15 +219,50 @@
                     </div>
                 </div>
 
+                <!-- Category Quick Chips Bar -->
+                <div class="glass-panel p-5 rounded-2xl space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-300 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-list text-pink-400"></i> 올리브영 카테고리별 대량 수집 (Category Shop Bulk Scraping)
+                        </span>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[10px] text-gray-400 font-bold">수집 페이지 수:</label>
+                            <select id="scrapePages" class="bg-[#141518] text-xs text-blue-400 border border-[#26282d] rounded-lg px-2.5 py-1 outline-none font-bold cursor-pointer">
+                                <option value="1">1 페이지 (최대 48개)</option>
+                                <option value="2">2 페이지 (최대 96개)</option>
+                                <option value="3">3 페이지 (최대 144개)</option>
+                                <option value="5">5 페이지 (최대 240개)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" onclick="selectCategory('10000010001', '스킨케어 전체')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧴 스킨케어 전체</button>
+                        <button type="button" onclick="selectCategory('100000100010001', '스킨/토너')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">💧 스킨/토너</button>
+                        <button type="button" onclick="selectCategory('100000100010002', '에센스/세럼/앰플')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧪 에센스/세럼/앰플</button>
+                        <button type="button" onclick="selectCategory('100000100010003', '크림')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🥛 크림</button>
+                        <button type="button" onclick="selectCategory('100000100010004', '로션/에멀젼')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🧴 로션</button>
+                        <button type="button" onclick="selectCategory('100000100010005', '미스트/오일')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🌿 미스트/오일</button>
+                        <button type="button" onclick="selectCategory('100000100010006', '마스크팩/패드')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">🎭 마스크팩/패드</button>
+                        <button type="button" onclick="selectCategory('100000100010007', '선케어')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">☀️ 선케어</button>
+                        <button type="button" onclick="selectCategory('10000010002', '메이크업')" class="cat-chip text-xs bg-[#1e2025] hover:bg-blue-600/30 hover:text-blue-300 text-gray-300 border border-[#26282d] px-3 py-1.5 rounded-xl transition">💄 메이크업</button>
+                    </div>
+                </div>
+
                 <!-- Sourcing settings panel -->
                 <div class="bg-[#141518] border border-[#22242a] rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">검색 키워드 또는 상품 고유 번호 (ID / URL)</label>
-                            <div class="flex items-center bg-[#0a0a0c] border border-[#26282d] rounded-2xl p-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition">
-                                <input type="text" id="searchQuery" placeholder="예: VT 리들샷, 어누아 패드, 독도 토너 또는 상품 번호(올리브영 A000000..., 다이소 1025...)" class="w-full bg-transparent text-white placeholder-gray-600 outline-none text-base">
+                            <label class="block text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">검색 키워드, 13자리 바코드(880...) 또는 상품 번호(URL)</label>
+                            <div class="flex items-center bg-[#0a0a0c] border border-[#26282d] rounded-2xl p-4 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition gap-2">
+                                <input type="text" id="searchQuery" placeholder="예: 13자리 바코드(880...), VT 리들샷, 어누아 패드 또는 올리브영/다이소 URL" class="w-full bg-transparent text-white placeholder-gray-600 outline-none text-base">
+                                <button type="button" onclick="openBarcodeModal()" class="bg-[#1e2025] hover:bg-blue-600/30 text-blue-400 hover:text-blue-300 border border-[#26282d] hover:border-blue-500/40 text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-barcode text-base"></i>
+                                    <span class="hidden sm:inline">바코드 촬영/사진</span>
+                                </button>
                             </div>
                         </div>
+
                         <div>
                             <label class="block text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">소싱 출처 채널</label>
                             <div class="grid grid-cols-3 gap-2">
@@ -1157,7 +1237,110 @@
             document.getElementById('qrModal').classList.add('hidden');
         }
 
+        // Category Selector JS
+        let currentSearchMode = 'keyword';
+        function selectCategory(catNo, name) {
+            document.getElementById('searchQuery').value = `https://www.oliveyoung.co.kr/store/display/getCategoryShop.do?dispCatNo=${catNo}`;
+            currentSearchMode = 'category';
+            showToast(`카테고리 '${name}'가 선택되었습니다. 하단의 '스토어 검색 및 수집 시작' 버튼을 누르세요.`);
+        }
+
+        // Barcode Scanner Controller JS
+        let html5QrCodeScanner = null;
+
+        function openBarcodeModal() {
+            document.getElementById('barcodeModal').classList.remove('hidden');
+            switchBarcodeMode('file');
+        }
+
+        function closeBarcodeModal() {
+            document.getElementById('barcodeModal').classList.add('hidden');
+            stopCameraScanner();
+        }
+
+        function switchBarcodeMode(mode) {
+            const btnFile = document.getElementById('tab-bc-file');
+            const btnCam = document.getElementById('tab-bc-cam');
+            const secFile = document.getElementById('bcFileSection');
+            const secCam = document.getElementById('bcCamSection');
+            
+            if(mode === 'file') {
+                btnFile.className = "py-2.5 rounded-lg bg-[#1e2025] text-white font-bold";
+                btnCam.className = "py-2.5 rounded-lg text-gray-400 font-bold";
+                secFile.classList.remove('hidden');
+                secCam.classList.add('hidden');
+                stopCameraScanner();
+            } else {
+                btnCam.className = "py-2.5 rounded-lg bg-[#1e2025] text-white font-bold";
+                btnFile.className = "py-2.5 rounded-lg text-gray-400 font-bold";
+                secCam.classList.remove('hidden');
+                secFile.classList.add('hidden');
+                startCameraScanner();
+            }
+        }
+
+        async function handleBarcodeFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusEl = document.getElementById('bcStatus');
+            statusEl.className = "text-xs text-blue-400 font-bold bg-blue-500/10 p-3 rounded-xl border border-blue-500/20";
+            statusEl.classList.remove('hidden');
+            statusEl.innerText = "이미지에서 바코드 추출 중...";
+
+            const html5QrCode = new Html5Qrcode("interactiveScanner");
+            try {
+                const decodedText = await html5QrCode.scanFile(file, true);
+                statusEl.className = "text-xs text-emerald-400 font-bold bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20";
+                statusEl.innerText = `바코드 감지 성공! (${decodedText})`;
+                showToast(`바코드 감지: ${decodedText}`);
+                
+                document.getElementById('searchQuery').value = decodedText;
+                closeBarcodeModal();
+                searchProducts();
+            } catch (err) {
+                statusEl.className = "text-xs text-red-400 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20";
+                statusEl.innerText = "바코드를 감지하지 못했습니다. 더 선명한 바코드 이미지를 사용해 보세요.";
+            }
+        }
+
+        function startCameraScanner() {
+            if(!html5QrCodeScanner) {
+                html5QrCodeScanner = new Html5Qrcode("interactiveScanner");
+            }
+            
+            const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+            
+            html5QrCodeScanner.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText, decodedResult) => {
+                    showToast(`카메라 바코드 감지: ${decodedText}`);
+                    document.getElementById('searchQuery').value = decodedText;
+                    closeBarcodeModal();
+                    searchProducts();
+                },
+                (errorMessage) => {
+                    // Ignore parse loop error
+                }
+            ).catch(err => {
+                const statusEl = document.getElementById('bcStatus');
+                statusEl.classList.remove('hidden');
+                statusEl.className = "text-xs text-red-400 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20";
+                statusEl.innerText = "카메라에 접근할 수 없습니다. 권한을 확인하세요.";
+            });
+        }
+
+        function stopCameraScanner() {
+            if(html5QrCodeScanner && html5QrCodeScanner.isScanning) {
+                html5QrCodeScanner.stop().then(() => {
+                    console.log("Scanner stopped");
+                }).catch(err => console.error(err));
+            }
+        }
+
         async function logout() {
+
 
             if(!confirm("디바이스 연결을 해제(로그아웃)하시겠습니까?")) return;
             try {

@@ -132,6 +132,101 @@ def search_products(keyword, custom_cookies_str=None, custom_ua=None):
         print(f"Error fetching search results from Olive Young: {e}")
         return []
 
+def scrape_category(cat_input, page_count=1, custom_cookies_str=None, custom_ua=None):
+    """
+    Scrapes category items from Olive Young by category ID or Category URL.
+    """
+    cat_no = str(cat_input).strip()
+    if "dispCatNo=" in cat_no:
+        match = re.search(r"dispCatNo=([^&]+)", cat_no)
+        if match:
+            cat_no = match.group(1)
+    cat_no = re.sub(r"[^\d]", "", cat_no)
+    if not cat_no:
+        cat_no = "10000010001"
+        
+    headers, cookies = get_request_params(custom_cookies_str, custom_ua)
+    all_products = []
+    
+    for page in range(1, page_count + 1):
+        url = f"https://www.oliveyoung.co.kr/store/display/getMCategoryList.do?dispCatNo={cat_no}&fltDispCatNo=&prdSort=1&pageIdx={page}&rowsPerPage=48"
+        try:
+            res = requests.get(url, headers=headers, cookies=cookies, timeout=10)
+            if res.status_code != 200:
+                print(f"Category fetch failed on page {page}: {res.status_code}")
+                break
+                
+            soup = BeautifulSoup(res.text, "html.parser")
+            items = soup.select("ul.cate_prd_list li, .prd_info")
+            if not items:
+                break
+                
+            for item in items:
+                try:
+                    link_elem = item.select_one("a.prd_thumb, a.prd_info_area") or item.select_one("a")
+                    if not link_elem:
+                        continue
+                    
+                    goods_no = item.get("data-ref-goodsno")
+                    if not goods_no and link_elem.get("href"):
+                        href = link_elem.get("href")
+                        match = re.search(r"goodsNo=([^&]+)", href)
+                        if match:
+                            goods_no = match.group(1)
+                        else:
+                            js_match = re.search(r"moveGoodsDetail\('([^']+)'\)", href)
+                            if js_match:
+                                goods_no = js_match.group(1)
+                    
+                    if not goods_no:
+                        continue
+                        
+                    brand_elem = item.select_one(".tx_brand, .tx_brand_name, .brand")
+                    brand = brand_elem.get_text(strip=True) if brand_elem else "Generic"
+                    
+                    name_elem = item.select_one(".tx_name, .prd_name, .tx_prd_name")
+                    name = name_elem.get_text(strip=True) if name_elem else ""
+                    if not name:
+                        continue
+                        
+                    img_elem = item.select_one("img")
+                    img_url = ""
+                    if img_elem:
+                        img_url = img_elem.get("data-original") or img_elem.get("src") or ""
+                        if img_url.startswith("//"):
+                            img_url = "https:" + img_url
+                            
+                    org_price_elem = item.select_one(".tx_org, .price-1")
+                    cur_price_elem = item.select_one(".tx_cur, .price-2")
+                    
+                    org_price_str = org_price_elem.get_text(strip=True) if org_price_elem else ""
+                    cur_price_str = cur_price_elem.get_text(strip=True) if cur_price_elem else ""
+                    
+                    org_price = int(re.sub(r"[^\d]", "", org_price_str)) if org_price_str and re.sub(r"[^\d]", "", org_price_str) else None
+                    cur_price = int(re.sub(r"[^\d]", "", cur_price_str)) if cur_price_str and re.sub(r"[^\d]", "", cur_price_str) else 0
+                    
+                    if org_price is None or org_price == 0:
+                        org_price = cur_price
+                        
+                    all_products.append({
+                        "source": "Olive Young",
+                        "goods_no": goods_no,
+                        "brand": brand,
+                        "name": name,
+                        "original_price": org_price,
+                        "sale_price": cur_price,
+                        "image_url": img_url,
+                        "url": f"https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo={goods_no}"
+                    })
+                except Exception:
+                    continue
+        except Exception as err:
+            print(f"Error scraping category page {page}: {err}")
+            break
+            
+    return all_products
+
+
 def fetch_product_detail(goods_no, custom_cookies_str=None, custom_ua=None):
     """
     Fetches detailed product info for Olive Young product by goodsNo.
