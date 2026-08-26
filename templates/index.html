@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>K-Beauty Global Lister - All-in-One Master Suite</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -1913,12 +1915,13 @@
                 card.innerHTML = `
                     <div class="space-y-2">
                         <div class="relative rounded-xl overflow-hidden bg-white aspect-square flex items-center justify-center">
-                            <img src="${item.image_url || 'https://via.placeholder.com/200'}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="">
+                            <img src="${item.image_url || 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300'}" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=300';" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" alt="">
                             <span class="absolute top-2 left-2 ${type === 'ds' ? 'bg-red-600' : 'bg-gradient-to-r from-emerald-600 to-teal-600'} text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow">
                                 ${type === 'ds' ? '🔴 다이소 뷰티' : (item.evidence_badge || `🥇 랭킹 #${idx+1}위`)}
                             </span>
                             ${discountRate > 0 ? `<span class="absolute top-2 right-2 bg-black/80 text-pink-400 border border-pink-500/40 text-[10px] font-black px-1.5 py-0.5 rounded">🔥 ${discountRate}%</span>` : ''}
                         </div>
+
                         
                         <div>
                             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">${item.brand}</span>
