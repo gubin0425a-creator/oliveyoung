@@ -585,10 +585,31 @@
             }, 3000);
         }
 
+        let cachedBackendOrigin = null;
+
+        async function getBackendUrl(path) {
+            if (cachedBackendOrigin !== null) {
+                return cachedBackendOrigin + path;
+            }
+            
+            if (window.location.hostname.includes('github.io') || window.location.protocol === 'file:') {
+                try {
+                    const test = await fetch('http://127.0.0.1:8501/api/info', { mode: 'cors' });
+                    if (test.ok) {
+                        cachedBackendOrigin = 'http://127.0.0.1:8501';
+                        return cachedBackendOrigin + path;
+                    }
+                } catch(e) {}
+            }
+            
+            cachedBackendOrigin = '';
+            return path;
+        }
+
         // Fetch Queue from Backend
         async function fetchQueues() {
             try {
-                const res = await fetch('/api/queues');
+                const res = await fetch(await getBackendUrl('/api/queues'));
                 const data = await res.json();
                 sourcingQueue = data.sourcing_queue || {};
                 listingQueue = data.listing_queue || {};
@@ -629,20 +650,23 @@
             const ua = document.getElementById('oyUa').value.trim();
             
             try {
-                const res = await fetch('/api/search', {
+                const res = await fetch(await getBackendUrl('/api/search'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         query: query,
                         channel: currentSourceChannel,
                         cookies: cookies,
-                        ua: ua
+                        ua: ua,
+                        mode: currentSearchMode,
+                        pages: parseInt(document.getElementById('scrapePages').value) || 1
                     })
                 });
                 const data = await res.json();
                 searchResults = data.results || [];
                 
                 if(searchResults.length === 0) {
+
                     showToast("수집된 결과가 없습니다. 올리브영 방화벽 우회값을 확인하거나 다른 검색어를 입력해 보세요.", true);
                     document.getElementById('searchResultsSection').classList.add('hidden');
                 } else {
@@ -714,7 +738,8 @@
             const ua = document.getElementById('oyUa').value.trim();
             
             try {
-                const res = await fetch('/api/sourcing/add', {
+                const res = await fetch(await getBackendUrl('/api/sourcing/add'), {
+
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

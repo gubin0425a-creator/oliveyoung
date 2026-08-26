@@ -76,8 +76,16 @@ def load_queues():
 def save_queues(queues):
     save_json(QUEUES_FILE, queues)
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    return response
+
 @app.before_request
 def check_auth():
+
     if request.path in ['/login', '/api/auth']:
         return
     if request.path.startswith('/static'):
