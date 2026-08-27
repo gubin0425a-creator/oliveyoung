@@ -17,13 +17,15 @@ def export_to_shopee_excel(products: list, filepath: str) -> bool:
     headers_technical = [
         "category_id", "product_name", "product_description", "parent_sku", 
         "price", "stock", "product_weight", "days_to_ship",
-        "image_1", "image_2", "image_3", "image_4", "image_5", "image_6", "image_7", "image_8", "image_9"
+        "image_1", "image_2", "image_3", "image_4", "image_5", "image_6", "image_7", "image_8", "image_9",
+        "brand", "country_of_origin", "shelf_life", "skin_type", "formulation"
     ]
     
     headers_human = [
         "Category ID", "Product Name", "Product Description", "Parent SKU",
         "Price", "Stock", "Weight (kg)", "Days to Ship (Pre-order)",
-        "Image 1", "Image 2", "Image 3", "Image 4", "Image 5", "Image 6", "Image 7", "Image 8", "Image 9"
+        "Image 1", "Image 2", "Image 3", "Image 4", "Image 5", "Image 6", "Image 7", "Image 8", "Image 9",
+        "Brand", "Country of Origin", "Shelf Life", "Skin Type", "Formulation"
     ]
     
     # Construct rows
@@ -62,7 +64,12 @@ def export_to_shopee_excel(products: list, filepath: str) -> bool:
             prod.get("stock", 100),                # Default stock
             prod.get("weight", 0.1),               # Weight in kg
             prod.get("days_to_ship", ""),          # Default non-preorder (empty)
-            img_urls[0], img_urls[1], img_urls[2], img_urls[3], img_urls[4], img_urls[5], img_urls[6], img_urls[7], img_urls[8]
+            img_urls[0], img_urls[1], img_urls[2], img_urls[3], img_urls[4], img_urls[5], img_urls[6], img_urls[7], img_urls[8],
+            prod.get("brand_english", prod.get("brand", "No Brand")), # Brand
+            "South Korea",                         # Country of Origin (국가명)
+            "36 Months",                           # Shelf Life (유통기한)
+            "All Skin Type",                       # Skin Type (피부타입)
+            "Cream/Serum"                          # Formulation (제형)
         ]
         rows.append(row)
         

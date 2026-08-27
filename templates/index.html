@@ -1743,7 +1743,12 @@
                             "Original Price": parseFloat(item.calculated_price || (item.sale_price * 0.002)).toFixed(2),
                             "Stock": item.stock || 999,
                             "Weight (kg)": item.weight || 0.3,
-                            "Cover Image": getProxiedImageUrl(item.image_url, item)
+                            "Cover Image": getProxiedImageUrl(item.image_url, item),
+                            "Brand": item.brand_english || item.brand || "No Brand",
+                            "Country of Origin": "South Korea",
+                            "Shelf Life": "36 Months",
+                            "Skin Type": "All Skin Type",
+                            "Formulation": "Cream/Serum"
                         }));
                         const ws = XLSX.utils.json_to_sheet(rows);
                         const wb = XLSX.utils.book_new();
