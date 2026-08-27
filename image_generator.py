@@ -8,19 +8,43 @@ from google.genai import types
 STATIC_AI_DIR = os.path.join(os.path.dirname(__file__), 'static', 'ai_images')
 os.makedirs(STATIC_AI_DIR, exist_ok=True)
 
+# 올리브영 1위 베스트셀러 썸네일 성공 방정식 & 전략적 프롬프트 프리셋
 STYLE_PROMPTS = {
-    "studio": "A high-end luxury commercial studio product photograph of Korean cosmetic {brand} {name}. Packaging & Label details: {details}. Sitting on a sleek minimalist podium, soft diffused studio lighting, clean glass skin aesthetic, crystal clear focus, 4k resolution",
-    "lifestyle": "An aesthetic lifestyle photograph of Korean beauty product {brand} {name}. Packaging & Label details: {details}. Placed on a natural wood vanity, surrounded by fresh botanical leaves and gentle morning sunlight, premium commercial shot, 4k",
-    "water": "A refreshing commercial product shot of Korean skincare {brand} {name}. Packaging & Label details: {details}. With crystal clear water droplets and gentle water splash background, ultra detailed, clean K-beauty aesthetic, 4k"
+    # 1. 올리브영 스튜디오 시그니처 1:1 대표 컷 (화이트/아이보리 미니멀 클린 배경 + 단상자+본품 풀세트 연출 + 초고해상도 패키징 선명도)
+    "studio": (
+        "A hyper-realistic top-tier K-beauty commercial hero product photograph of {brand} {name}. "
+        "Olive Young No.1 Bestseller signature aesthetic: Pure pristine studio setting with minimalist neutral stone or ivory pedestal, "
+        "crisp studio softbox lighting highlighting the sleek product silhouette, crystal-clear label typography and exact brand packaging details: {details}. "
+        "Clean, clutter-free, luminous glass skin vibe, razor-sharp focus on texture and cap, ultra-clean professional catalog photography, 8k resolution, photorealistic."
+    ),
+    
+    # 2. 올리브영 기획세트 & 볼륨업 구성 (본품 + 리필/추가 증정 1+1 기획세트 혜택 강조 샷)
+    "bundle": (
+        "A premium K-beauty promotional bundle packaging shot of {brand} {name}. "
+        "Olive Young Special Value Set aesthetic: The main cosmetic bottle prominently featured next to its matching outer paper gift box and bonus travel sachet or refill ampoule. "
+        "Visual details: {details}. Bright soft gradient pastel background, award-winning beauty product styling, crisp reflections, commercial e-commerce advertising shot, 8k resolution."
+    ),
+
+    # 3. 핵심 유효성분 & 수분/텍스처 임팩트 (물방울, 시카/비타민 원물, 맑은 수분 파동 텍스처 컷)
+    "texture": (
+        "An eye-catching commercial beauty product close-up of {brand} {name}. "
+        "Surrounded by ultra-crisp refreshing micro water droplets, glowing translucent serum texture swirl, and subtle botanical elements matching its core ingredient. "
+        "Packaging details: {details}. Vibrant yet clean Korean skincare aesthetic, bright energetic daylight reflection, high conversion advertising photography, 8k resolution."
+    ),
+
+    # 4. 라이프스타일 욕실/화장대 감성 컷 (자연광 + 우드/대리석 파우더룸)
+    "lifestyle": (
+        "An aesthetic lifestyle cosmetic photograph of Korean beauty product {brand} {name}. "
+        "Placed on a modern clean marble and wood bathroom vanity bathed in gentle morning sunlight. "
+        "Packaging & Label details: {details}. Fresh green eucalyptus accent in background, soft bokeh, luxury Korean spa mood, photorealistic commercial shot, 4k."
+    )
 }
 
 def generate_ai_product_image(brand, name, visual_description=None, style="studio", api_key=None):
     """
-    Generates a unique, highly realistic twin AI product image using Gemini Imagen 3.
-    Preserves exact packaging typography, color, and design.
-    Returns relative URL path (/static/ai_images/filename.png).
+    Generates a high-converting, realistic Olive Young style AI product image using Gemini Imagen 3.
     """
-    details = visual_description if visual_description else f"{brand} {name} cosmetic packaging with clear logo and clean design"
+    details = visual_description if visual_description else f"{brand} {name} authentic cosmetic packaging with crisp logo typography and signature colorway"
     prompt_template = STYLE_PROMPTS.get(style, STYLE_PROMPTS["studio"])
     prompt = prompt_template.format(brand=brand or "K-Beauty", name=name or "Cosmetic Product", details=details)
     
