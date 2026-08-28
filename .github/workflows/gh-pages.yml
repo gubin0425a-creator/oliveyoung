@@ -1,0 +1,50 @@
+name: Deploy MogiEgg to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main  # main 브랜치 푸시 시 자동 실행
+  workflow_dispatch:
+
+# 리포지토리 권한 설정 (GitHub Pages 배포용)
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare static files
+        run: |
+          mkdir -p public
+          # index.html을 루트로 복사
+          cp templates/index.html public/index.html
+          # static 폴더의 이미지 에셋 복사
+          cp -r static public/static
+          
+          # GitHub Pages는 서브디렉토리 경로를 사용할 수 있으므로 Base URL 처리를 위해 상대경로를 조정합니다.
+          sed -i 's|/static/mascot.png|static/mascot.png|g' public/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
